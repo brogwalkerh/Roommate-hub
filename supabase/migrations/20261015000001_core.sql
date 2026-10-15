@@ -446,12 +446,36 @@ create table public.recurring_bills (
   default_payer uuid references public.profiles (id) on delete set null,
   lead_days smallint not null default 7 check (lead_days between 0 and 28),
   active boolean not null default true,
+  last_generated_month date, -- first day of the latest month a bill was created for
   created_by uuid default auth.uid() references public.profiles (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create trigger recurring_bills_updated_at before update on public.recurring_bills
   for each row execute function public.set_updated_at();
+
+-- Shares must be a non-empty array that adds up to the amount, like save_bill enforces.
+create or replace function public.recurring_bills_check_shares()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  total bigint;
+begin
+  if jsonb_typeof(new.shares) <> 'array' or jsonb_array_length(new.shares) = 0 then
+    raise exception 'shares_mismatch: a recurring bill needs at least one share' using errcode = '22023';
+  end if;
+  select coalesce(sum((s ->> 'share_cents')::bigint), 0) into total from jsonb_array_elements(new.shares) s;
+  if total <> new.amount_cents then
+    raise exception 'shares_mismatch: shares add up to % but the bill is %', total, new.amount_cents
+      using errcode = '22023';
+  end if;
+  return new;
+end;
+$$;
+create trigger recurring_bills_check_shares before insert or update of shares, amount_cents on public.recurring_bills
+  for each row execute function public.recurring_bills_check_shares();
 
 create table public.bills (
   id uuid primary key default gen_random_uuid(),
@@ -461,7 +485,7 @@ create table public.bills (
   split public.split_type not null default 'equal',
   due_on date,
   paid_on date,
-  paid_by uuid references public.profiles (id) on delete set null,
+  paid_by uuid references public.profiles (id) on delete restrict,
   notes text,
   receipt_path text,
   recurring_bill_id uuid references public.recurring_bills (id) on delete set null,
@@ -479,7 +503,7 @@ create trigger bills_updated_at before update on public.bills
 
 create table public.bill_shares (
   bill_id uuid not null references public.bills (id) on delete cascade,
-  user_id uuid not null references public.profiles (id) on delete cascade,
+  user_id uuid not null references public.profiles (id) on delete restrict,
   share_cents bigint not null check (share_cents >= 0),
   percent numeric(5, 2) check (percent is null or (percent >= 0 and percent <= 100)),
   primary key (bill_id, user_id)
@@ -488,8 +512,8 @@ create index bill_shares_user_idx on public.bill_shares (user_id);
 
 create table public.settlements (
   id uuid primary key default gen_random_uuid(),
-  from_user uuid not null references public.profiles (id) on delete cascade,
-  to_user uuid not null references public.profiles (id) on delete cascade,
+  from_user uuid not null references public.profiles (id) on delete restrict,
+  to_user uuid not null references public.profiles (id) on delete restrict,
   amount_cents bigint not null check (amount_cents > 0),
   paid_on date not null default current_date,
   note text,
@@ -574,7 +598,9 @@ left join ledger l on l.user_id = p.id
 group by p.id;
 
 -- Create the upcoming bill for each active recurring bill, lead_days before it
--- is due. Safe to run repeatedly. Run daily by pg_cron.
+-- is due. Each template creates at most one bill per month, so a bill someone
+-- deleted or moved isn't recreated. Safe to run repeatedly and concurrently.
+-- Run hourly by pg_cron, and by the Bills page after a template is saved.
 create or replace function public.generate_recurring_bills()
 returns int
 language plpgsql
@@ -589,31 +615,62 @@ declare
   due date;
   created int := 0;
   new_bill public.bills;
+  share_total bigint;
+  member_count int;
   i int;
 begin
+  -- Members may call this; the scheduler calls it with no user at all.
+  if auth.uid() is not null and not public.is_member() then
+    raise exception 'not_allowed' using errcode = '42501';
+  end if;
+  -- One run at a time, so two runs can't both create the same bill.
+  perform pg_advisory_xact_lock(hashtext('public.generate_recurring_bills'));
+
   select timezone into tz from public.household where id = 1;
   today := (now() at time zone tz)::date;
 
-  for rb in select * from public.recurring_bills where active loop
+  for rb in select * from public.recurring_bills where active for update loop
     -- Check this month and next month.
     for i in 0..1 loop
       month_start := (date_trunc('month', today) + make_interval(months => i))::date;
+      continue when rb.last_generated_month is not null and month_start <= rb.last_generated_month;
       due := month_start + (least(rb.day_of_month,
                extract(day from (month_start + interval '1 month' - interval '1 day'))::int) - 1);
-      if due >= today and due - rb.lead_days <= today
-         and not exists (select 1 from public.bills where recurring_bill_id = rb.id and due_on = due) then
-        insert into public.bills (title, category, amount_cents, split, due_on, recurring_bill_id, created_by)
-        values (rb.title, rb.category, rb.amount_cents, rb.split, due, rb.id, rb.created_by)
-        returning * into new_bill;
+      continue when due < today or due - rb.lead_days > today;
 
-        if jsonb_array_length(rb.shares) > 0 then
+      insert into public.bills (title, category, amount_cents, split, due_on, recurring_bill_id, created_by)
+      values (rb.title, rb.category, rb.amount_cents, rb.split, due, rb.id, rb.created_by)
+      on conflict (recurring_bill_id, due_on) where recurring_bill_id is not null do nothing
+      returning * into new_bill;
+
+      if new_bill.id is not null then
+        select coalesce(sum((s ->> 'share_cents')::bigint), 0) into share_total
+          from jsonb_array_elements(rb.shares) s
+          where exists (select 1 from public.profiles p where p.id = (s ->> 'user_id')::uuid);
+
+        if share_total = rb.amount_cents then
           insert into public.bill_shares (bill_id, user_id, share_cents, percent)
           select new_bill.id, (s ->> 'user_id')::uuid, (s ->> 'share_cents')::bigint, (s ->> 'percent')::numeric
           from jsonb_array_elements(rb.shares) s
           where exists (select 1 from public.profiles p where p.id = (s ->> 'user_id')::uuid);
+        else
+          -- Someone on the template no longer has an account: split equally
+          -- among current members, extra cents to the earliest members.
+          select count(*) into member_count from public.profiles;
+          insert into public.bill_shares (bill_id, user_id, share_cents, percent)
+          select new_bill.id, p.id,
+                 rb.amount_cents / member_count
+                   + case when p.rn <= rb.amount_cents % member_count then 1 else 0 end,
+                 null
+          from (select id, row_number() over (order by created_at, id) as rn from public.profiles) p;
+          update public.bills set split = 'equal' where id = new_bill.id;
         end if;
         created := created + 1;
       end if;
+
+      update public.recurring_bills set last_generated_month = month_start where id = rb.id;
+      rb.last_generated_month := month_start;
+      new_bill := null;
     end loop;
   end loop;
   return created;

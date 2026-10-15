@@ -1,10 +1,13 @@
 import { addDays, startOfDay } from 'date-fns'
-import { CalendarDays, Check, FolderOpen, Home, ListChecks, NotebookPen, Pin } from 'lucide-react'
+import { CalendarDays, Check, FolderOpen, Home, ListChecks, NotebookPen, Pin, Receipt } from 'lucide-react'
 import { useMemo } from 'react'
 import { Link } from 'react-router'
 import { PersonDot } from '../../components/Person'
 import { useMembers } from '../../household/useHousehold'
-import { formatDayTime, formatTime } from '../../lib/dates'
+import { formatDay, formatDayTime, formatTime, parseDateOnly } from '../../lib/dates'
+import { formatCents } from '../../lib/money'
+import { useBalance, useBillsDueSoon } from '../bills/hooks'
+import { balanceSummary } from '../bills/split'
 import { fileKind, formatUploaded } from '../files/fileUtils'
 import { FileIcon } from '../files/FileIcon'
 import { useRecentFiles } from '../files/hooks'
@@ -182,6 +185,50 @@ export function FilesCard() {
               <span className="shrink-0 text-sm text-muted">{formatUploaded(f.created_at)}</span>
             </li>
           ))}
+        </ul>
+      )}
+    </Card>
+  )
+}
+
+export function BillsCard({ now }: { now: Date }) {
+  const { roommate, me } = useMembers()
+  const balance = useBalance()
+  const { bills, isLoading } = useBillsDueSoon(7)
+  const todayStart = startOfDay(now)
+
+  return (
+    <Card icon={Receipt} title="Bills" to="/bills">
+      {balance.isLoading ? (
+        <Skeleton />
+      ) : (
+        <p className={`font-display text-xl font-bold tabular ${balance.myNetCents < 0 ? 'text-danger' : ''}`}>
+          {balanceSummary(balance.myNetCents, roommate?.display_name)}
+        </p>
+      )}
+      {isLoading ? null : bills.length === 0 ? (
+        <CardNote>No bills due this week.</CardNote>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {bills.slice(0, 4).map((b) => {
+            const due = b.due_on ? parseDateOnly(b.due_on) : null
+            const overdue = !!due && due < todayStart
+            const myShare = b.bill_shares.find((s) => s.user_id === me?.id)?.share_cents
+            return (
+              <li key={b.id} className="flex items-center gap-3">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{b.title}</span>
+                  <span className={`text-sm ${overdue ? 'text-danger' : 'text-muted'}`}>
+                    {due ? `${overdue ? 'Overdue · was due ' : 'Due '}${formatDay(due)}` : 'No due date'}
+                  </span>
+                </span>
+                <span className="shrink-0 text-right tabular">
+                  <span className="block font-medium">{formatCents(Number(b.amount_cents))}</span>
+                  {myShare !== undefined && <span className="text-sm text-muted">yours {formatCents(Number(myShare))}</span>}
+                </span>
+              </li>
+            )
+          })}
         </ul>
       )}
     </Card>

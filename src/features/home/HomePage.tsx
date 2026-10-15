@@ -6,7 +6,7 @@ import { IconButton } from '../../components/ui/Button'
 import { useHousehold, useMembers } from '../../household/useHousehold'
 import { getPushStatus } from '../../pwa/push'
 import { useNow } from '../reminders/useNow'
-import { FilesCard, GuestsCard, NotesCard, RemindersCard, TodayCard } from './cards'
+import { BillsCard, FilesCard, GuestsCard, NotesCard, RemindersCard, TodayCard } from './cards'
 import { greeting } from './summary'
 
 const NUDGE_KEY = 'roommate-hub:hide-notify-nudge'
@@ -72,6 +72,7 @@ export default function HomePage() {
         <TodayCard now={now} />
         <RemindersCard now={now} />
         <GuestsCard now={now} />
+        <BillsCard now={now} />
         <NotesCard />
         <FilesCard />
       </div>

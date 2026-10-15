@@ -212,6 +212,7 @@ export type Database = {
           default_payer: string | null
           lead_days: number
           active: boolean
+          last_generated_month: string | null
           created_by: string | null
           updated_at: string
         } & Timestamps

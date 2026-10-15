@@ -7,7 +7,8 @@ type Size = 'sm' | 'md'
 const variants: Record<Variant, string> = {
   primary: 'bg-accent text-accent-ink hover:bg-accent-hover',
   secondary: 'bg-surface text-ink border border-line hover:bg-surface-2',
-  ghost: 'text-ink hover:bg-surface-2',
+  // No text color: ghost buttons inherit it, so a text-* class passed in wins.
+  ghost: 'hover:bg-surface-2',
   danger: 'bg-danger-soft text-danger hover:brightness-95',
 }
 
