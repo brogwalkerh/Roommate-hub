@@ -376,6 +376,7 @@ export type Database = {
         }
         Returns: Database['public']['Tables']['bills']['Row']
       }
+      generate_recurring_bills: { Args: Record<PropertyKey, never>; Returns: number }
       next_occurrence: {
         Args: {
           p_anchor: string

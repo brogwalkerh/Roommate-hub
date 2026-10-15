@@ -99,6 +99,8 @@ grant execute on function public.complete_reminder(uuid) to authenticated;
 grant execute on function public.undo_complete_reminder(uuid) to authenticated;
 grant execute on function public.save_bill(uuid, text, text, bigint, public.split_type, date, date, uuid, text, text, jsonb) to authenticated;
 grant execute on function public.next_occurrence(timestamptz, public.repeat_rule, timestamptz, text) to authenticated;
+-- Lets the Bills page create a new recurring bill's first instance right away.
+grant execute on function public.generate_recurring_bills() to authenticated;
 revoke all on function public.enforce_signup_allowlist() from public, anon, authenticated;
 revoke all on function public.handle_new_user() from public, anon, authenticated;
 
