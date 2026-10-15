@@ -1,0 +1,89 @@
+/*
+  FullCalendar, styled with the app's design tokens.
+
+  We use FullCalendar's "classic" theme (theme.css) but not its palette.css:
+  every --fc-classic-* variable is defined here from the app tokens, so the
+  calendar follows the light and dark themes with no extra rules.
+  Only tokens (var(--surface), var(--ink) ...) appear below, never raw colors.
+
+  The variables live on :root, not on the calendar's wrapper, because
+  FullCalendar draws its "+n more" popover outside the wrapper.
+*/
+
+:root {
+  --fc-classic-primary: var(--accent);
+  --fc-classic-primary-foreground: var(--accent-ink);
+
+  --fc-classic-event: var(--accent);
+  --fc-classic-event-contrast: var(--ink);
+  --fc-classic-background-event: var(--accent);
+  --fc-classic-background-event-opacity: 15%;
+  --fc-classic-background-event-foreground-opacity: 60%;
+  --fc-classic-highlight: color-mix(in srgb, var(--accent) 18%, transparent);
+  --fc-classic-today: var(--accent-soft);
+  --fc-classic-now: var(--danger);
+  --fc-classic-small-dot-width: 8px;
+  --fc-classic-large-dot-width: 10px;
+
+  --fc-classic-background: var(--surface);
+  --fc-classic-faint: color-mix(in srgb, var(--ink) 4%, transparent);
+  --fc-classic-muted: color-mix(in srgb, var(--ink) 8%, transparent);
+  --fc-classic-strong: color-mix(in srgb, var(--ink) 14%, transparent);
+
+  --fc-classic-foreground: var(--ink);
+  --fc-classic-faint-foreground: color-mix(in srgb, var(--muted) 65%, var(--surface));
+  --fc-classic-muted-foreground: var(--muted);
+
+  --fc-classic-border: var(--line);
+  --fc-classic-strong-border: var(--line);
+}
+
+.sched-cal {
+  font-family: inherit;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: var(--surface);
+  overflow: clip;
+}
+
+/*
+  Event chips in the month and week grids and in the "+n more" popover: a tint
+  of the person's, feed's or guest color behind ink text, with a solid edge in
+  the full color. This keeps text readable in both themes whatever color
+  someone picks. FullCalendar sets --fc-event-color on each event from its
+  `color`. The agenda list keeps its plain rows with a colored dot.
+*/
+.sched-ev:not(.sched-cal--list .sched-ev) {
+  background-color: var(--surface-2);
+  border-inline-start: 3px solid var(--fc-event-color);
+}
+
+@supports (color: color-mix(in srgb, red, red)) {
+  .sched-ev:not(.sched-cal--list .sched-ev) {
+    background-color: color-mix(in srgb, var(--fc-event-color) 20%, var(--surface));
+  }
+}
+
+/* Dates Airbnb blocks: quiet, hatched and dashed so they never look like a booking. */
+.sched-ev--blocked:not(.sched-cal--list .sched-ev) {
+  background-color: var(--surface-2);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--muted) 22%, transparent) 5px 6px
+  );
+  border-inline-start-style: dashed;
+}
+
+.sched-ev--blocked,
+.sched-ev--blocked * {
+  font-style: italic;
+}
+
+.sched-cal--list .sched-ev--blocked {
+  opacity: 0.75;
+}
+
+.sched-ev {
+  min-width: 0;
+}
