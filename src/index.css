@@ -1,0 +1,152 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/bricolage-grotesque';
+
+/*
+  Design tokens. Components use the semantic Tailwind colors below
+  (bg-surface, text-ink, border-line, bg-accent ...) and never raw hex values,
+  so light and dark themes both work without `dark:` variants.
+  Theme: system by default; Settings can force <html data-theme="light|dark">.
+*/
+:root {
+  --bg: #f4f6f7;
+  --surface: #ffffff;
+  --surface-2: #eef1f3;
+  --ink: #16202a;
+  --muted: #5a6573;
+  --line: #dbe1e6;
+  --accent: #2b6a5b;
+  --accent-hover: #235a4d;
+  --accent-ink: #ffffff;
+  --accent-soft: #e2efeb;
+  --danger: #b3261e;
+  --danger-soft: #fbe9e7;
+  --warn: #8a5f0e;
+  --warn-soft: #f6eedd;
+  --guest: #c2410c;
+  --guest-soft: #fdebe1;
+  --focus: #2c5ea6;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --bg: #0f1418;
+    --surface: #172027;
+    --surface-2: #1e2830;
+    --ink: #e6ebef;
+    --muted: #9aa5b1;
+    --line: #2a343e;
+    --accent: #6fc0aa;
+    --accent-hover: #86cfbb;
+    --accent-ink: #0b1f1a;
+    --accent-soft: #1b342e;
+    --danger: #f2867e;
+    --danger-soft: #3a1d1b;
+    --warn: #e3b65e;
+    --warn-soft: #3a2e17;
+    --guest: #fb923c;
+    --guest-soft: #3b2214;
+    --focus: #8cb3ef;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  --bg: #0f1418;
+  --surface: #172027;
+  --surface-2: #1e2830;
+  --ink: #e6ebef;
+  --muted: #9aa5b1;
+  --line: #2a343e;
+  --accent: #6fc0aa;
+  --accent-hover: #86cfbb;
+  --accent-ink: #0b1f1a;
+  --accent-soft: #1b342e;
+  --danger: #f2867e;
+  --danger-soft: #3a1d1b;
+  --warn: #e3b65e;
+  --warn-soft: #3a2e17;
+  --guest: #fb923c;
+  --guest-soft: #3b2214;
+  --focus: #8cb3ef;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-guest: var(--guest);
+  --color-guest-soft: var(--guest-soft);
+  --color-focus: var(--focus);
+  --font-display: 'Bricolage Grotesque Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+  }
+  /* Keep 16px inputs so iOS Safari does not zoom on focus. */
+  input,
+  textarea,
+  select {
+    font-size: max(16px, 1rem);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
