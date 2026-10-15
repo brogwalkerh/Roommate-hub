@@ -1,0 +1,10 @@
+# Supabase CLI settings for local development and deploys.
+project_id = "roommate-hub"
+
+# Both functions check auth themselves: either the pg_cron shared secret
+# (x-cron-secret header) or a signed-in household member's access token.
+[functions.sync-calendars]
+verify_jwt = false
+
+[functions.send-notifications]
+verify_jwt = false

@@ -7,6 +7,7 @@ import { ToastProvider } from './components/ui/Toast'
 import './index.css'
 import { queryClient } from './lib/queryClient'
 import { applyStoredTheme } from './lib/theme'
+import './pwa/install'
 import { UpdatePrompt } from './pwa/UpdatePrompt'
 
 applyStoredTheme()

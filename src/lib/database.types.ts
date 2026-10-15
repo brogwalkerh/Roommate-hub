@@ -144,7 +144,6 @@ export type Database = {
           assignee_id: string | null
           completed_at: string | null
           completed_by: string | null
-          notified_due_at: string | null
           created_by: string | null
           updated_at: string
         } & Timestamps
@@ -254,7 +253,6 @@ export type Database = {
           notes: string | null
           receipt_path: string | null
           recurring_bill_id: string | null
-          notified_due_on: string | null
           created_by: string | null
           updated_at: string
         } & Timestamps

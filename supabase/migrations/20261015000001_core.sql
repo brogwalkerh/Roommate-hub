@@ -252,7 +252,6 @@ create table public.reminders (
   assignee_id uuid references public.profiles (id) on delete set null, -- null = both of you
   completed_at timestamptz,
   completed_by uuid references public.profiles (id) on delete set null,
-  notified_due_at timestamptz, -- the due_at value a push notification was last sent for
   created_by uuid default auth.uid() references public.profiles (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -463,7 +462,6 @@ create table public.bills (
   notes text,
   receipt_path text,
   recurring_bill_id uuid references public.recurring_bills (id) on delete set null,
-  notified_due_on date,
   created_by uuid default auth.uid() references public.profiles (id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -644,6 +642,14 @@ on conflict (id) do nothing;
 ------------------------------------------------------------------------------
 -- Push notifications
 ------------------------------------------------------------------------------
+
+-- One row per notification sent, so each reminder, bill or guest arrival is
+-- announced once. Keys look like 'reminder:<id>:<due_at>'. Service role only.
+create table public.notification_log (
+  key text primary key,
+  sent_at timestamptz not null default now()
+);
+alter table public.notification_log enable row level security;
 
 create table public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
