@@ -32,7 +32,6 @@ function row(id: string, title: string, dueAt: string, extra: Record<string, unk
     assignee_id: null,
     completed_at: null,
     completed_by: null,
-    notified_due_at: null,
     created_by: null,
     created_at: dueAt,
     updated_at: dueAt,

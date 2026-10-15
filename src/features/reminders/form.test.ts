@@ -11,7 +11,6 @@ const reminder: Reminder = {
   assignee_id: 'sam',
   completed_at: null,
   completed_by: null,
-  notified_due_at: null,
   created_by: 'me',
   created_at: '2026-10-01T00:00:00Z',
   updated_at: '2026-10-01T00:00:00Z',
