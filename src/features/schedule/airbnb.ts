@@ -28,6 +28,17 @@ export function safeHttpUrl(value: string): string | undefined {
   }
 }
 
+/**
+ * Accept only https links on Airbnb's own domains for the reservation button,
+ * so a tampered feed can't turn it into a look-alike login page.
+ */
+export function safeAirbnbUrl(value: string): string | undefined {
+  const url = safeHttpUrl(value)
+  if (!url) return undefined
+  const { protocol, hostname } = new URL(url)
+  return protocol === 'https:' && /(^|\.)airbnb\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/i.test(hostname) ? url : undefined
+}
+
 /** Pull the reservation link and phone last 4 out of an Airbnb DESCRIPTION. */
 export function parseAirbnbDescription(text: string | null | undefined): AirbnbDetails {
   if (!text) return {}
@@ -35,7 +46,7 @@ export function parseAirbnbDescription(text: string | null | undefined): AirbnbD
   const details: AirbnbDetails = {}
 
   const url = /Reservation URL:\s*(\S+)/i.exec(clean)?.[1]
-  const safeUrl = url ? safeHttpUrl(url) : undefined
+  const safeUrl = url ? safeAirbnbUrl(url) : undefined
   if (safeUrl) details.reservationUrl = safeUrl
 
   const phone = /Phone Number\s*\(Last 4 Digits\)\s*:\s*(\d{4})(?!\d)/i.exec(clean)?.[1]

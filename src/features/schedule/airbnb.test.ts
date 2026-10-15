@@ -1,4 +1,4 @@
-import { isAirbnbBooking, nightsBetween, parseAirbnbDescription, safeHttpUrl } from './airbnb'
+import { isAirbnbBooking, nightsBetween, parseAirbnbDescription, safeAirbnbUrl, safeHttpUrl } from './airbnb'
 
 const URL_ = 'https://www.airbnb.com/hosting/reservations/details/HMABC12345'
 
@@ -100,5 +100,21 @@ describe('nightsBetween', () => {
 
   it('never returns less than one night', () => {
     expect(nightsBetween(new Date(2026, 9, 17), new Date(2026, 9, 17))).toBe(1)
+  })
+})
+
+describe('safeAirbnbUrl', () => {
+  it('keeps https links on Airbnb domains', () => {
+    expect(safeAirbnbUrl('https://www.airbnb.com/hosting/reservations/details/HM1')).toBe('https://www.airbnb.com/hosting/reservations/details/HM1')
+    expect(safeAirbnbUrl('https://www.airbnb.co.uk/x')).toBe('https://www.airbnb.co.uk/x')
+  })
+  it('drops other hosts, look-alikes and plain http', () => {
+    expect(safeAirbnbUrl('https://airbnb.com.evil.example/login')).toBeUndefined()
+    expect(safeAirbnbUrl('https://evil-airbnb.com/login')).toBeUndefined()
+    expect(safeAirbnbUrl('http://www.airbnb.com/x')).toBeUndefined()
+    expect(safeAirbnbUrl('javascript:alert(1)')).toBeUndefined()
+  })
+  it('is used for the reservation link in descriptions', () => {
+    expect(parseAirbnbDescription('Reservation URL: https://phish.example/airbnb')).toEqual({})
   })
 })

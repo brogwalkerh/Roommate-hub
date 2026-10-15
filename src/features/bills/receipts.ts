@@ -31,6 +31,8 @@ function extensionOf(name: string): string {
 /** The file's MIME type, guessed from its extension when the browser leaves it blank. Null if not a receipt type. */
 export function receiptMimeType(file: Pick<FileLike, 'name' | 'type'>): string | null {
   const type = file.type.toLowerCase()
+  // SVG can carry script, so it isn't accepted as a receipt.
+  if (type === 'image/svg+xml') return null
   if (type === 'application/pdf' || type.startsWith('image/')) return type
   if (type && type !== 'application/octet-stream') return null
   return EXTENSION_TYPES[extensionOf(file.name)] ?? null

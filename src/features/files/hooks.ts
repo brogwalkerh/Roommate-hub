@@ -5,6 +5,7 @@ import type { Tables, TablesUpdate } from '../../lib/database.types'
 import { friendlyError, unwrap } from '../../lib/errors'
 import { qk } from '../../lib/queryClient'
 import { STORAGE_BUCKET, supabase } from '../../lib/supabase'
+import { storageContentType } from '../../lib/contentTypes'
 import { useRealtime } from '../../lib/useRealtime'
 import { canThumbnail, clampFileName, isMissingObjectError, safeStorageName, validateUpload } from './fileUtils'
 import { runWithConcurrency, summarizeUploads, type UploadStatus } from './uploadQueue'
@@ -210,7 +211,8 @@ async function uploadFile(file: File, folder: string): Promise<HouseholdFile> {
 
   const path = `${crypto.randomUUID()}/${safeStorageName(file.name)}`
   const { error: uploadError } = await storage().upload(path, file, {
-    contentType: file.type || undefined,
+    // Types that could run script (SVG, HTML) are stored as plain downloads.
+    contentType: storageContentType(file.type),
     upsert: false,
   })
   if (uploadError) throw uploadError

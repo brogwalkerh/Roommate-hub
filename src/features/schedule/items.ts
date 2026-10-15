@@ -1,7 +1,7 @@
 import { addDays, isValid } from 'date-fns'
 import { parseDateOnly } from '../../lib/dates'
 import type { Profile } from '../../household/useHousehold'
-import { isAirbnbBooking, nightsBetween, parseAirbnbDescription, safeHttpUrl } from './airbnb'
+import { isAirbnbBooking, nightsBetween, parseAirbnbDescription, safeAirbnbUrl } from './airbnb'
 import type {
   CalendarItem,
   EventItem,
@@ -71,7 +71,7 @@ export function buildGuestStay(row: FeedEventWithFeed, feed: FeedMeta): GuestSta
     nights: nightsBetween(times.start, times.end),
     feedName: feed.name,
   }
-  const reservationUrl = details.reservationUrl ?? (row.url ? safeHttpUrl(row.url) : undefined)
+  const reservationUrl = details.reservationUrl ?? (row.url ? safeAirbnbUrl(row.url) : undefined)
   if (reservationUrl) stay.reservationUrl = reservationUrl
   if (details.phoneLast4) stay.phoneLast4 = details.phoneLast4
   return stay

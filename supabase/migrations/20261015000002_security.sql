@@ -23,7 +23,7 @@ alter table public.push_subscriptions enable row level security;
 
 -- The anonymous role never touches app tables.
 revoke all on all tables in schema public from anon;
-revoke all on all functions in schema public from anon;
+revoke all on all functions in schema public from public, anon;
 revoke all on all sequences in schema public from anon;
 
 ------------------------------------------------------------------------------
@@ -71,8 +71,20 @@ create policy "members all files" on public.files
 -- Calendar feeds: the url column is write-only for clients
 ------------------------------------------------------------------------------
 
-create policy "members all calendar feeds" on public.calendar_feeds
-  for all to authenticated using ((select public.is_member())) with check ((select public.is_member()));
+-- Both of you manage household feeds (Airbnb). A personal calendar can only be
+-- changed or removed by its owner, so nobody can flip the other's "busy only".
+create policy "members read feeds" on public.calendar_feeds
+  for select to authenticated using ((select public.is_member()));
+create policy "members add feeds" on public.calendar_feeds
+  for insert to authenticated
+  with check ((select public.is_member()) and (owner_id is null or owner_id = (select auth.uid())));
+create policy "owner edits feed" on public.calendar_feeds
+  for update to authenticated
+  using ((select public.is_member()) and (owner_id is null or owner_id = (select auth.uid())))
+  with check (owner_id is null or owner_id = (select auth.uid()));
+create policy "owner removes feed" on public.calendar_feeds
+  for delete to authenticated
+  using ((select public.is_member()) and (owner_id is null or owner_id = (select auth.uid())));
 revoke select on public.calendar_feeds from authenticated;
 grant select (id, name, kind, url_hint, color, owner_id, privacy, last_synced_at, last_error, created_by, created_at)
   on public.calendar_feeds to authenticated;

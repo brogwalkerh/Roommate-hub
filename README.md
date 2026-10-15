@@ -8,10 +8,10 @@ Open it at https://brogwalkerh.github.io/roommate-hub/
 
 ### Create your account
 
-Only the two household emails can create an account.
+Only the two household members can create an account. Each of you gets a one-time **Invite code** from whoever set up the app.
 
 1. Open the app and choose **Create account**.
-2. Enter your name, email and a password of at least 8 characters, then tap **Create account**.
+2. Enter your name, email, your **Invite code** and a password of at least 12 characters, then tap **Create account**.
 3. The app emails you a confirmation link. Open it on the same device you signed up on, then sign in.
 
 ### Sign in
@@ -227,17 +227,22 @@ The deploy workflow does not pass `VITE_` variables. Before the first deploy, pu
 
 ### Add a roommate
 
-Only emails listed in `public.allowed_emails` can create accounts. Run this in the Supabase SQL editor, with the address in lowercase:
+An account can be created only with an email listed in `public.allowed_emails` together with that email's one-time invite code. This stops anyone who guesses a household email from registering it first. Run this in the Supabase SQL editor, with the address in lowercase and a long random code you then share privately:
 
 ```sql
-insert into public.allowed_emails (email) values ('name@example.com');
+insert into public.allowed_emails (email, code_hash)
+values ('name@example.com', extensions.crypt('the-invite-code', extensions.gen_salt('bf')))
+on conflict (email) do update set code_hash = excluded.code_hash;
 ```
+
+The code is cleared once it's used. Run the same statement again to issue a new one. Once you both have accounts, you can also turn off **Allow new users to sign up** under **Authentication** in the Supabase dashboard.
 
 ### Scheduled jobs and secrets
 
 - `pg_cron` runs `sync-calendars` every 30 minutes, `send-notifications` every 5 minutes, and `generate_recurring_bills()` hourly at minute 7.
 - The header of `supabase/migrations/20261015000003_jobs.sql` explains the two Vault secrets the jobs need. The `cron_secret` in Vault must match the `CRON_SECRET` Edge Function secret. Push also needs the Edge Function secrets `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`, and optionally `VAPID_SUBJECT`.
-- In Supabase, under **Authentication**, **URL Configuration**, set the **Site URL** to the app's address. Otherwise, sign-up confirmation links will not lead back to the app.
+- In Supabase, under **Authentication**, **URL Configuration**, set the **Site URL** to the app's address and list exactly that address under **Redirect URLs** (no wildcards). Otherwise, sign-up confirmation links will not lead back to the app.
+- Under **Authentication**, keep **Confirm email** on and set the minimum password length to 12.
 
 Keep secrets out of the repository. Calendar links and keys belong in the database or the Supabase dashboard, never in code.
 

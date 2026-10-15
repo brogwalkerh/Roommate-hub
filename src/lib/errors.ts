@@ -6,14 +6,14 @@ export function friendlyError(error: unknown): string {
       : String(error)
 
   if (/signup_not_allowed|Database error saving new user/i.test(message)) {
-    return 'This app is private. Only the two household emails can create an account.'
+    return 'That email and invite code don’t match. Check the code, or ask whoever set up the app for a new one.'
   }
   if (/Invalid login credentials/i.test(message)) return 'That email and password don’t match.'
   if (/Email not confirmed/i.test(message)) {
     return 'Confirm your email first. Check your inbox for the link we sent.'
   }
   if (/User already registered/i.test(message)) return 'That email already has an account. Sign in instead.'
-  if (/Password should be at least/i.test(message)) return 'Use a password with at least 8 characters.'
+  if (/Password should be at least/i.test(message)) return 'Use a longer password: at least 12 characters.'
   if (/rate limit|too many requests/i.test(message)) return 'Too many attempts. Wait a minute and try again.'
   if (/shares_mismatch/i.test(message)) return 'The split doesn’t add up to the bill total.'
   if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {

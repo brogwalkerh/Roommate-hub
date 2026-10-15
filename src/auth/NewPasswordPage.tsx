@@ -4,6 +4,7 @@ import { TextField } from '../components/ui/Field'
 import { friendlyError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './AuthProvider'
+import { MIN_PASSWORD } from './LoginPage'
 
 /** Shown after someone opens a password-reset link. */
 export function NewPasswordPage() {
@@ -30,8 +31,8 @@ export function NewPasswordPage() {
           label="New password"
           type="password"
           autoComplete="new-password"
-          minLength={8}
-          hint="At least 8 characters."
+          minLength={MIN_PASSWORD}
+          hint={`At least ${MIN_PASSWORD} characters.`}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required

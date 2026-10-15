@@ -28,6 +28,10 @@ export type ParseOptions = {
   maxOccurrencesPerSeries?: number
   /** Safety cap for the whole feed. */
   maxRows?: number
+  /** Safety cap on repeat dates walked through per series, including ones before the window. */
+  maxStepsPerSeries?: number
+  /** Safety cap on repeat dates walked through for the whole feed. */
+  maxTotalSteps?: number
 }
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -80,6 +84,9 @@ function overlaps(start: any, end: any, windowStart: Date, windowEnd: Date): boo
 export function parseIcs(ICAL: IcalLib, text: string, opts: ParseOptions): FeedEventRow[] {
   const maxPerSeries = opts.maxOccurrencesPerSeries ?? 500
   const maxRows = opts.maxRows ?? 5000
+  const maxStepsPerSeries = opts.maxStepsPerSeries ?? 20_000
+  const maxTotalSteps = opts.maxTotalSteps ?? 200_000
+  let totalSteps = 0
   const root = new ICAL.Component(ICAL.parse(text))
 
   for (const tz of root.getAllSubcomponents('vtimezone')) {
@@ -119,8 +126,12 @@ export function parseIcs(ICAL: IcalLib, text: string, opts: ParseOptions): FeedE
     }
     const it = ev.iterator()
     let count = 0
+    let steps = 0
     let next: any
+    // Bound the walk itself: a series like FREQ=MINUTELY from 1900 would
+    // otherwise spin through millions of dates before reaching the window.
     while ((next = it.next()) && count < maxPerSeries && rows.length < maxRows) {
+      if (++steps > maxStepsPerSeries || ++totalSteps > maxTotalSteps) break
       if (next.toJSDate() > opts.windowEnd) break
       const details = ev.getOccurrenceDetails(next)
       if (cancelled(details.item)) continue

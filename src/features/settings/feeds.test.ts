@@ -19,5 +19,6 @@ describe('validateFeedUrl', () => {
     expect(validateFeedUrl('  ', 'ical')).toMatch(/Paste/)
     expect(validateFeedUrl('calendar please', 'ical')).toMatch(/doesn’t look like a link/)
     expect(validateFeedUrl('http://example.com/a.ics', 'ical')).toMatch(/https/)
+    expect(validateFeedUrl('https://me:secret@example.com/a.ics', 'ical')).toMatch(/username/)
   })
 })

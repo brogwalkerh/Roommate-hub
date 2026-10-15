@@ -39,6 +39,7 @@ export function validateFeedUrl(raw: string, kind: Enums<'feed_kind'>): string |
     return 'That doesn’t look like a link. It should start with https:// or webcal://.'
   }
   if (url.protocol !== 'https:') return 'The link should start with https:// or webcal://.'
+  if (url.username || url.password) return 'Links with a username or password aren’t supported.'
   if (kind === 'airbnb' && !/(^|\.)airbnb\.(com|[a-z]{2}|co\.[a-z]{2}|com\.[a-z]{2})$/i.test(url.hostname)) {
     return 'That isn’t an Airbnb link. In Airbnb, open Calendar, then Availability, then Export calendar.'
   }

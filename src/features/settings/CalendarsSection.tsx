@@ -19,6 +19,7 @@ export function CalendarsSection() {
   const sync = useSyncFeeds()
   const { toast } = useToast()
   const [editing, setEditing] = useState<FeedInput | null>(null)
+  const { me } = useMembers()
 
   async function syncAll() {
     try {
@@ -70,7 +71,7 @@ export function CalendarsSection() {
           </Button>
           <Button
             icon={<CalendarPlus className="size-4" />}
-            onClick={() => setEditing({ name: '', kind: 'ical', url: '', color: FEED_COLORS[1], owner_id: null, privacy: 'details' })}
+            onClick={() => setEditing({ name: '', kind: 'ical', url: '', color: FEED_COLORS[1], owner_id: me?.id ?? null, privacy: 'details' })}
           >
             Add personal calendar
           </Button>
@@ -94,9 +95,17 @@ function toInput(feed: Feed): FeedInput {
 }
 
 function FeedRow({ feed, onEdit }: { feed: Feed; onEdit: () => void }) {
-  const { byId } = useMembers()
+  const { byId, me } = useMembers()
+  // Only the owner can change a personal calendar (enforced by the database too).
+  const canEdit = feed.owner_id === null || feed.owner_id === me?.id
   return (
-    <button type="button" onClick={onEdit} className="flex w-full items-start gap-3 p-4 text-left hover:bg-surface-2">
+    <button
+      type="button"
+      onClick={canEdit ? onEdit : undefined}
+      disabled={!canEdit}
+      title={canEdit ? undefined : `Only ${byId(feed.owner_id)?.display_name ?? 'its owner'} can change this calendar`}
+      className="flex w-full items-start gap-3 p-4 text-left enabled:hover:bg-surface-2 disabled:cursor-default"
+    >
       <span aria-hidden className="mt-1 size-3 shrink-0 rounded-full" style={{ background: feed.color }} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="flex flex-wrap items-center gap-2 font-medium">
@@ -131,7 +140,7 @@ function FeedDialog({ initial, onClose }: { initial: FeedInput; onClose: () => v
   const save = useSaveFeed()
   const remove = useDeleteFeed()
   const { toast } = useToast()
-  const { me, roommate } = useMembers()
+  const { me } = useMembers()
   const isAirbnb = form.kind === 'airbnb'
   const editing = !!form.id
 
@@ -234,7 +243,6 @@ function FeedDialog({ initial, onClose }: { initial: FeedInput; onClose: () => v
               onChange={(e) => setForm({ ...form, owner_id: e.target.value || null })}
             >
               {me && <option value={me.id}>{me.display_name} (you)</option>}
-              {roommate && <option value={roommate.id}>{roommate.display_name}</option>}
               <option value="">Household</option>
             </SelectField>
             <div className="flex flex-col gap-1.5">

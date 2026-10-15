@@ -1,7 +1,8 @@
 -- Roommate Hub: core schema.
 -- Every table is locked by Row-Level Security to confirmed household members.
--- Signups are limited to emails in public.allowed_emails (rows are added
--- directly in the database, never in a committed file).
+-- Signups need an email in public.allowed_emails AND that email's one-time
+-- invite code (rows are added directly in the database, never in a committed
+-- file), so nobody can register a household email before its owner does.
 
 ------------------------------------------------------------------------------
 -- Helpers
@@ -23,7 +24,9 @@ $$;
 ------------------------------------------------------------------------------
 
 create table public.allowed_emails (
-  email text primary key check (email = lower(email) and position('@' in email) > 1)
+  email text primary key check (email = lower(email) and position('@' in email) > 1),
+  -- extensions.crypt('<invite code>', extensions.gen_salt('bf')); cleared once used
+  code_hash text
 );
 alter table public.allowed_emails enable row level security;
 -- No policies: clients can never read or write the allowlist.
@@ -35,6 +38,23 @@ create table public.household (
   updated_at timestamptz not null default now()
 );
 insert into public.household (id) values (1);
+
+-- Reject time zone names Postgres doesn't know; a bad one would break
+-- repeating reminders, recurring bills and notifications.
+create or replace function public.household_check_timezone()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  perform now() at time zone new.timezone;
+  return new;
+exception when others then
+  raise exception 'invalid_timezone: % is not a known time zone', new.timezone using errcode = '22023';
+end;
+$$;
+create trigger household_check_timezone before insert or update of timezone on public.household
+  for each row execute function public.household_check_timezone();
 
 create table public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
@@ -70,19 +90,29 @@ $$;
 revoke all on function public.is_member() from public, anon;
 grant execute on function public.is_member() to authenticated, service_role;
 
--- Reject signups from emails that are not on the allowlist.
+-- Reject signups unless the email is on the allowlist and the signup carries
+-- that email's invite code (user metadata "invite_code"). The code is single
+-- use and removed from the stored metadata. Wrong email and wrong code fail
+-- the same way, so signup can't be used to test which emails are allowed.
 create or replace function public.enforce_signup_allowlist()
 returns trigger
 language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  presented text := coalesce(new.raw_user_meta_data ->> 'invite_code', '');
 begin
-  if new.email is null
-     or not exists (select 1 from public.allowed_emails a where a.email = lower(new.email)) then
-    raise exception 'signup_not_allowed: % is not on the household allowlist', coalesce(new.email, '(no email)')
-      using errcode = 'P0001';
+  if new.email is null or not exists (
+    select 1 from public.allowed_emails a
+    where a.email = lower(new.email)
+      and a.code_hash is not null
+      and a.code_hash = extensions.crypt(presented, a.code_hash)
+  ) then
+    raise exception 'signup_not_allowed' using errcode = 'P0001';
   end if;
+  update public.allowed_emails set code_hash = null where email = lower(new.email);
+  new.raw_user_meta_data := coalesce(new.raw_user_meta_data, '{}'::jsonb) - 'invite_code';
   return new;
 end;
 $$;
@@ -157,7 +187,8 @@ create table public.calendar_feeds (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 60),
   kind public.feed_kind not null,
-  url text not null check (url ~* '^(https|webcal)://'),
+  -- https/webcal only, no user:password@ part (it would show up in url_hint)
+  url text not null check (url ~* '^(https|webcal)://' and url !~* '^[a-z]+://[^/?#]*@'),
   url_hint text,
   color text not null default '#d9534f' check (color ~ '^#[0-9a-fA-F]{6}$'),
   owner_id uuid references public.profiles (id) on delete cascade, -- null = household (Airbnb)
@@ -165,7 +196,10 @@ create table public.calendar_feeds (
   last_synced_at timestamptz,
   last_error text,
   created_by uuid default auth.uid() references public.profiles (id) on delete set null,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint calendar_feeds_airbnb_host check (
+    kind <> 'airbnb' or url ~* '^(https|webcal)://([a-z0-9-]+\.)*airbnb\.[a-z.]+/'
+  )
 );
 
 create or replace function public.calendar_feeds_url_hint()
@@ -695,8 +729,23 @@ create table public.files (
 );
 create index files_folder_idx on public.files (folder, created_at desc);
 
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('household', 'household', false, 52428800)
+-- Only content types that can't run script on the storage domain. The app
+-- uploads anything else as application/octet-stream (see src/lib/contentTypes.ts).
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('household', 'household', false, 52428800, array[
+  'application/octet-stream',
+  'application/pdf',
+  'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/heic', 'image/heif', 'image/avif', 'image/bmp',
+  'text/plain', 'text/csv',
+  'application/msword', 'application/vnd.ms-excel', 'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.oasis.opendocument.text', 'application/vnd.oasis.opendocument.spreadsheet',
+  'application/rtf', 'application/zip',
+  'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/ogg',
+  'video/mp4', 'video/quicktime', 'video/webm'
+])
 on conflict (id) do nothing;
 
 ------------------------------------------------------------------------------

@@ -126,4 +126,16 @@ describe('parseIcs', () => {
     const [row] = parseIcs(ICAL, ics, { ...windowOpts, privacy: 'details' })
     expect(row).toMatchObject({ start_date: '2026-11-01', end_date: '2026-11-02' })
   })
+
+  it('stops walking a runaway series instead of hanging', () => {
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT', 'UID:spam',
+      'DTSTART:19000101T000000Z', 'DTEND:19000101T000100Z', 'RRULE:FREQ=MINUTELY',
+      'SUMMARY:Spam', 'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n')
+    const started = Date.now()
+    const rows = parseIcs(ICAL, ics, { ...windowOpts, privacy: 'details' })
+    expect(rows).toHaveLength(0)
+    expect(Date.now() - started).toBeLessThan(2000)
+  })
 })

@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase'
 import { getStoredTheme, setTheme, type ThemeChoice } from '../../lib/theme'
 import { useInstallPrompt } from '../../pwa/install'
 import { isIos, isStandalone } from '../../pwa/push'
+import { MIN_PASSWORD } from '../../auth/LoginPage'
 
 export function AppearanceSection() {
   const [theme, setChoice] = useState<ThemeChoice>(getStoredTheme)
@@ -123,7 +124,7 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
       footer={
         <>
           <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" loading={busy} disabled={password.length < 8} onClick={() => void submit()}>
+          <Button variant="primary" loading={busy} disabled={password.length < MIN_PASSWORD} onClick={() => void submit()}>
             Save password
           </Button>
         </>
@@ -132,15 +133,15 @@ function ChangePasswordDialog({ onClose }: { onClose: () => void }) {
       <form
         onSubmit={(e) => {
           e.preventDefault()
-          if (password.length >= 8) void submit()
+          if (password.length >= MIN_PASSWORD) void submit()
         }}
       >
         <TextField
           label="New password"
           type="password"
           autoComplete="new-password"
-          minLength={8}
-          hint="At least 8 characters."
+          minLength={MIN_PASSWORD}
+          hint={`At least ${MIN_PASSWORD} characters.`}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />

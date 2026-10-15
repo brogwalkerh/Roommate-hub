@@ -9,11 +9,14 @@ import { AppMark } from '../layout/AppMark'
 
 type Mode = 'signin' | 'signup' | 'forgot'
 
+export const MIN_PASSWORD = 12
+
 export function LoginPage() {
   const [mode, setMode] = useState<Mode>('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
@@ -29,11 +32,15 @@ export function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
         if (error) throw error
       } else if (mode === 'signup') {
-        if (password.length < 8) throw new Error('Password should be at least 8 characters')
+        if (password.length < MIN_PASSWORD) throw new Error(`Password should be at least ${MIN_PASSWORD} characters`)
         const { data, error } = await supabase.auth.signUp({
           email: cleanEmail,
           password,
-          options: { emailRedirectTo: config.appUrl, data: { display_name: name.trim() } },
+          options: {
+            emailRedirectTo: config.appUrl,
+            // The database checks and then discards the invite code.
+            data: { display_name: name.trim(), invite_code: inviteCode.trim() },
+          },
         })
         if (error) throw error
         if (!data.session) {
@@ -102,6 +109,18 @@ export function LoginPage() {
             inputMode="email"
             required
           />
+          {mode === 'signup' && (
+            <TextField
+              label="Invite code"
+              hint="The one-time code from whoever set up the app."
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              autoComplete="one-time-code"
+              autoCapitalize="none"
+              spellCheck={false}
+              required
+            />
+          )}
           {mode !== 'forgot' && (
             <TextField
               label="Password"
@@ -109,8 +128,8 @@ export function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              minLength={mode === 'signup' ? 8 : undefined}
-              hint={mode === 'signup' ? 'At least 8 characters.' : undefined}
+              minLength={mode === 'signup' ? MIN_PASSWORD : undefined}
+              hint={mode === 'signup' ? `At least ${MIN_PASSWORD} characters.` : undefined}
               required
             />
           )}
@@ -138,7 +157,7 @@ export function LoginPage() {
             </button>
           )}
         </form>
-        <p className="text-center text-sm text-muted">Only the two household emails can create an account.</p>
+        <p className="text-center text-sm text-muted">Only the two household members can create an account.</p>
       </div>
     </main>
   )
