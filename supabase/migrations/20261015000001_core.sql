@@ -418,8 +418,11 @@ language plpgsql
 set search_path = ''
 as $$
 begin
-  new.updated_at := now();
-  new.updated_by := auth.uid();
+  -- Only real edits count; pinning doesn't change "Edited by" or the version.
+  if new.title is distinct from old.title or new.body is distinct from old.body then
+    new.updated_at := now();
+    new.updated_by := auth.uid();
+  end if;
   return new;
 end;
 $$;

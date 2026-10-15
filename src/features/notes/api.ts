@@ -52,7 +52,7 @@ export async function saveNote(id: string, content: NoteContent, base: string | 
   return rows[0] ?? null
 }
 
-/** Note: the notes_touch trigger bumps updated_at / updated_by on this too. */
+/** Pinning leaves updated_at alone (notes_touch only bumps it for title/body edits). */
 export async function setNotePinned(id: string, pinned: boolean): Promise<Note> {
   return required(unwrap(await supabase.from('notes').update({ pinned }).eq('id', id).select().single()))
 }
