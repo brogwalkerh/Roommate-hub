@@ -15,6 +15,7 @@ type DialogProps = {
 /**
  * Modal built on the native <dialog> element (focus trapping, Esc to close).
  * Shows as a bottom sheet on phones and a centered panel on larger screens.
+ * Put `data-autofocus` on the field that should get focus when it opens.
  */
 export function Dialog({ open, onClose, title, children, footer, size = 'md' }: DialogProps) {
   const ref = useRef<HTMLDialogElement>(null)
@@ -22,7 +23,11 @@ export function Dialog({ open, onClose, title, children, footer, size = 'md' }: 
   useEffect(() => {
     const el = ref.current
     if (!el) return
-    if (open && !el.open) el.showModal()
+    if (open && !el.open) {
+      el.showModal()
+      // showModal focuses the Close button; prefer a field marked data-autofocus.
+      el.querySelector<HTMLElement>('[data-autofocus]')?.focus()
+    }
     if (!open && el.open) el.close()
   }, [open])
 

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 type Toast = {
   id: number
@@ -12,6 +12,9 @@ type ToastApi = {
 }
 
 const ToastContext = createContext<ToastApi | null>(null)
+
+// Older browsers (and jsdom in tests) lack popovers; there the region is a plain fixed element.
+const supportsPopover = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -30,12 +33,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   const api = useMemo(() => ({ toast }), [toast])
 
+  // Toasts live in the browser's top layer (as a popover) so they show above open dialogs.
+  // Re-showing on each change keeps them above any dialog opened since.
+  const region = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = region.current
+    if (!el || !supportsPopover) return
+    const open = el.matches(':popover-open')
+    if (open) el.hidePopover()
+    if (toasts.length > 0) el.showPopover()
+  }, [toasts])
+
   return (
     <ToastContext.Provider value={api}>
       {children}
       <div
+        ref={region}
+        popover={supportsPopover ? 'manual' : undefined}
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 flex flex-col items-center gap-2 px-4 md:bottom-6"
+        className="pointer-events-none fixed inset-x-0 top-auto bottom-[calc(5rem+env(safe-area-inset-bottom))] z-50 m-0 flex h-auto w-auto flex-col items-center gap-2 overflow-visible border-0 bg-transparent p-0 px-4 md:bottom-6 [&:not(:popover-open)]:hidden"
       >
         {toasts.map((t) => (
           <div

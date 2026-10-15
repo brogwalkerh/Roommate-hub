@@ -46,7 +46,7 @@ supabase/
   `parseDateOnly`, never `new Date('yyyy-mm-dd')` (that's UTC midnight).
 - **People**: `owner_id` / `assignee_id` of `null` means "household" / "both of you". Use `PersonPicker`
   and `PersonChip`. `useMembers()` gives `me`, `roommate`, `byId(id)`.
-- **Forms**: inside `<Dialog>` with the primary button in `footer`. Native inputs (`type="date"`,
+- **Forms**: inside `<Dialog>` with the primary button in `footer`; mark the first field `data-autofocus`. Native inputs (`type="date"`,
   `type="datetime-local"`) work best on phones.
 - **Mobile first**: must work at 375px wide. Touch targets at least 40px. The tab bar covers the bottom
   ~4.5rem on phones; the layout already pads for it.
