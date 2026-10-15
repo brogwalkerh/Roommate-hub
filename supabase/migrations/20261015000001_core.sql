@@ -260,7 +260,7 @@ create index reminders_open_due_idx on public.reminders (due_at) where completed
 create trigger reminders_updated_at before update on public.reminders
   for each row execute function public.set_updated_at();
 
--- A manual change to due_at restarts the repeat schedule from the new time.
+-- A manual change to due_at or the repeat rule restarts the schedule from due_at.
 create or replace function public.reminders_sync_anchor()
 returns trigger
 language plpgsql
@@ -269,7 +269,7 @@ as $$
 begin
   if tg_op = 'INSERT' then
     new.repeat_anchor := new.due_at;
-  elsif new.due_at is distinct from old.due_at
+  elsif (new.due_at is distinct from old.due_at or new.repeat is distinct from old.repeat)
         and coalesce(current_setting('app.completing_reminder', true), '') <> 'on' then
     new.repeat_anchor := new.due_at;
   end if;
