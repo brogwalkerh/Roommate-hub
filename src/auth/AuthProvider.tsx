@@ -55,8 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       recovering,
       finishRecovery: () => setRecovering(false),
+      // Only this device: the default ('global') would also sign you out on your other devices.
       signOut: async () => {
-        await supabase.auth.signOut()
+        await supabase.auth.signOut({ scope: 'local' })
       },
     }),
     [session, loading, recovering],
