@@ -6,6 +6,7 @@ import { config } from '../lib/config'
 import { friendlyError } from '../lib/errors'
 import { supabase } from '../lib/supabase'
 import { AppMark } from '../layout/AppMark'
+import { createAccount } from './createAccount'
 
 type Mode = 'signin' | 'signup' | 'forgot'
 
@@ -32,21 +33,9 @@ export function LoginPage() {
         const { error } = await supabase.auth.signInWithPassword({ email: cleanEmail, password })
         if (error) throw error
       } else if (mode === 'signup') {
-        if (password.length < MIN_PASSWORD) throw new Error(`Password should be at least ${MIN_PASSWORD} characters`)
-        const { data, error } = await supabase.auth.signUp({
-          email: cleanEmail,
-          password,
-          options: {
-            emailRedirectTo: config.appUrl,
-            // The database checks and then discards the invite code.
-            data: { display_name: name.trim(), invite_code: inviteCode.trim() },
-          },
-        })
-        if (error) throw error
-        if (!data.session) {
-          setNotice(`We sent a confirmation link to ${cleanEmail}. Open it on this device, then sign in.`)
-          setMode('signin')
-        }
+        if (password.length < MIN_PASSWORD) throw new Error('weak_password')
+        // Checked on the server, which creates the account ready to use and signs you in.
+        await createAccount({ email: cleanEmail, password, displayName: name.trim(), inviteCode: inviteCode.trim() })
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, { redirectTo: config.appUrl })
         if (error) throw error

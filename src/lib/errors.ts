@@ -5,6 +5,11 @@ export function friendlyError(error: unknown): string {
       ? String((error as { message: unknown }).message)
       : String(error)
 
+  if (/already_registered/i.test(message)) return 'That email already has an account. Sign in instead.'
+  if (/weak_password/i.test(message)) return 'Use a longer password: at least 12 characters.'
+  if (/long_password/i.test(message)) return 'That password is too long. Use 72 characters or fewer.'
+  if (/invalid_email/i.test(message)) return 'Check the email address.'
+  if (/invalid_name/i.test(message)) return 'Enter your name (up to 40 characters).'
   if (/signup_not_allowed|Database error saving new user/i.test(message)) {
     return 'That email and invite code don’t match. Check the code, or ask whoever set up the app for a new one.'
   }

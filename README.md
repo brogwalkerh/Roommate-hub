@@ -211,7 +211,7 @@ VITE_VAPID_PUBLIC_KEY=<VAPID public key, for push>
 
 ### Deploy
 
-Push to `main`. The **Check and deploy** workflow (`.github/workflows/deploy.yml`) runs the checks and the build, then publishes `dist/` to GitHub Pages. In the repository settings, set **Pages**, **Source** to **GitHub Actions**.
+Push to `main`. The **Check and deploy** workflow (`.github/workflows/deploy.yml`) runs the checks and the build, then publishes `dist/` to the `gh-pages` branch, which GitHub Pages serves (Settings, Pages, Source: Deploy from a branch, `gh-pages`).
 
 The deploy workflow does not pass `VITE_` variables. Before the first deploy, put your project's URL, publishable key and VAPID public key in the `PRODUCTION` block of `src/lib/config.ts`. These values are public by design.
 
