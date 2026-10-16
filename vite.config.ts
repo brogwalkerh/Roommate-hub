@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-// GitHub Pages serves the app from https://<user>.github.io/roommate-hub/
-const base = process.env.BASE_PATH ?? '/roommate-hub/'
+// GitHub Pages serves the app from https://brogwalkerh.github.io/Roommate-hub/ (the path matches the repo name)
+const base = process.env.BASE_PATH ?? '/Roommate-hub/'
 
 export default defineConfig({
   base,

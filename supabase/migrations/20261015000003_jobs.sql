@@ -1,8 +1,12 @@
--- Roommate Hub: scheduled jobs.
--- Requires two Vault secrets, created once outside migrations (never committed):
+-- Roommate Hub: scheduled jobs and function secrets.
+-- Requires Vault secrets created once outside migrations (never committed):
 --   select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
 --   select vault.create_secret('<random string>', 'cron_secret');
--- cron_secret must equal the CRON_SECRET Edge Function secret.
+--   select vault.create_secret('<VAPID public key>', 'vapid_public_key');
+--   select vault.create_secret('<VAPID private key>', 'vapid_private_key');
+--   select vault.create_secret('https://<user>.github.io/<repo>/', 'vapid_subject');
+-- Edge Functions read them through function_secret() (or an env var of the
+-- same name in upper case, which takes precedence).
 
 create extension if not exists pg_cron with schema pg_catalog;
 create extension if not exists pg_net with schema extensions;
@@ -33,6 +37,21 @@ begin
 end;
 $$;
 revoke all on function public.call_edge_function(text) from public, anon, authenticated;
+
+-- Edge Functions (secret key = service_role) read their secrets from Vault here.
+create or replace function public.function_secret(p_name text)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select decrypted_secret from vault.decrypted_secrets
+  where name = p_name
+    and p_name in ('cron_secret', 'vapid_public_key', 'vapid_private_key', 'vapid_subject');
+$$;
+revoke all on function public.function_secret(text) from public, anon, authenticated;
+grant execute on function public.function_secret(text) to service_role;
 
 select cron.schedule('sync-calendars', '*/30 * * * *', $$select public.call_edge_function('sync-calendars')$$);
 select cron.schedule('send-notifications', '*/5 * * * *', $$select public.call_edge_function('send-notifications')$$);

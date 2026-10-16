@@ -2,7 +2,7 @@
 // Airbnb guest arrivals/departures. Runs every 5 minutes from pg_cron.
 // A signed-in member can also POST { "test": true } to get a test notification.
 import webpush from 'npm:web-push@3.6.7'
-import { adminClient, authorize, cors, json } from '../_shared/http.ts'
+import { adminClient, authorize, cors, getSecret, json } from '../_shared/http.ts'
 import { localDateHour, planNotifications, type Message, type Payload } from '../_shared/notify.ts'
 
 type Subscription = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string }
@@ -10,12 +10,14 @@ type Subscription = { id: string; user_id: string; endpoint: string; p256dh: str
 // Reminders older than this are not announced, so a long outage doesn't cause a burst.
 const CATCH_UP_MS = 6 * 60 * 60 * 1000
 
-function configureWebPush() {
-  const publicKey = Deno.env.get('VAPID_PUBLIC_KEY')
-  const privateKey = Deno.env.get('VAPID_PRIVATE_KEY')
-  const subject = Deno.env.get('VAPID_SUBJECT') ?? 'https://brogwalkerh.github.io/roommate-hub/'
+async function configureWebPush(admin: ReturnType<typeof adminClient>) {
+  const [publicKey, privateKey, subject] = await Promise.all([
+    getSecret(admin, 'vapid_public_key'),
+    getSecret(admin, 'vapid_private_key'),
+    getSecret(admin, 'vapid_subject'),
+  ])
   if (!publicKey || !privateKey) throw new Error('VAPID keys are not configured')
-  webpush.setVapidDetails(subject, publicKey, privateKey)
+  webpush.setVapidDetails(subject ?? 'https://brogwalkerh.github.io/Roommate-hub/', publicKey, privateKey)
 }
 
 async function deliver(
@@ -57,7 +59,7 @@ Deno.serve(async (req) => {
   if (!caller) return json({ error: 'unauthorized' }, 401)
 
   try {
-    configureWebPush()
+    await configureWebPush(admin)
   } catch (err) {
     return json({ error: (err as Error).message }, 500)
   }

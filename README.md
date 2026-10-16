@@ -2,7 +2,7 @@
 
 Roommate Hub is the private app the two of you use to share a schedule, reminders, notes, your Airbnb calendar, bills and files. Only the two household accounts can see anything in it. It works in any modern web browser, and you can add it to your phone's Home Screen so it opens like an app.
 
-Open it at https://brogwalkerh.github.io/roommate-hub/
+Open it at https://brogwalkerh.github.io/Roommate-hub/
 
 ## Getting started
 

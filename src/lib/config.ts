@@ -4,9 +4,9 @@
 // Local overrides go in .env.local (VITE_SUPABASE_URL, ...).
 
 const PRODUCTION = {
-  supabaseUrl: 'https://YOUR-PROJECT.supabase.co',
-  supabasePublishableKey: 'YOUR-PUBLISHABLE-KEY',
-  vapidPublicKey: '',
+  supabaseUrl: 'https://jfpqqvjryepvjbpknnpe.supabase.co',
+  supabasePublishableKey: 'sb_publishable_sbWVfJtwXMvP7MAqNphI9A_0XR_HwQi',
+  vapidPublicKey: 'BLAgqq8a74aeWqwKuw2SHcLeNumk76ZLLx7_G_rHy9qaQBr6JDFf_q1lRMfeQmmJKMbpHX0Bb7EZ7yIJ5AXvIPk',
 }
 
 export const config = {

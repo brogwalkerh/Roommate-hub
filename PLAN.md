@@ -8,7 +8,7 @@ Status: **approved 2026-10-15, build in progress.**
 
 Decisions:
 - Lives in a new public repo, `brogwalkerh/roommate-hub`, served at
-  `https://brogwalkerh.github.io/roommate-hub/`.
+  `https://brogwalkerh.github.io/Roommate-hub/`.
 - You are the Airbnb host, so the listing's export link is available.
 - Phone push notifications for reminders are in v1.
 - Your roommate's email gets added to the allowlist before go-live.
