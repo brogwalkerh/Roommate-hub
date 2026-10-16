@@ -135,7 +135,8 @@ describe('useUploads', () => {
 
     const [path, body, options] = fake.storage.upload.mock.calls[0]
     expect(path).toMatch(/^[0-9a-f-]{36}\/My-Report-final\.pdf$/)
-    expect(body).toBe(file)
+    expect(body).toBeInstanceOf(Blob)
+    expect(body).toMatchObject({ type: 'application/pdf', size: 5 })
     expect(options).toMatchObject({ contentType: 'application/pdf', upsert: false })
 
     expect(callsTo('insert')[0][0]).toEqual({
@@ -146,6 +147,16 @@ describe('useUploads', () => {
       mime_type: 'application/pdf',
     })
     expect(fake.storage.remove).not.toHaveBeenCalled()
+  })
+
+  it('stores files that could run script as plain downloads', async () => {
+    const { result } = renderHook(() => useUploads(), { wrapper })
+    act(() => result.current.start([new File(['<script></script>'], 'page.html', { type: 'text/html' })], ''))
+    await waitFor(() => expect(result.current.items[0].status).toBe('done'))
+
+    const [, body, options] = fake.storage.upload.mock.calls[0]
+    expect(body).toMatchObject({ type: 'application/octet-stream' })
+    expect(options).toMatchObject({ contentType: 'application/octet-stream' })
   })
 
   it('removes the stored object when the row insert fails', async () => {

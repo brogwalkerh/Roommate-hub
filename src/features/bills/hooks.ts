@@ -16,7 +16,7 @@ import type { Tables, TablesUpdate, Views } from '../../lib/database.types'
 import { unwrap } from '../../lib/errors'
 import { qk } from '../../lib/queryClient'
 import { STORAGE_BUCKET, supabase } from '../../lib/supabase'
-import { storageContentType } from '../../lib/contentTypes'
+import { storageBody } from '../../lib/contentTypes'
 import { useRealtime } from '../../lib/useRealtime'
 import { describeBillError } from './billErrors'
 import {
@@ -223,7 +223,8 @@ async function uploadReceipt(file: File): Promise<UploadedReceipt> {
   const mimeType = receiptMimeType(file) ?? 'application/octet-stream'
   const bucket = supabase.storage.from(STORAGE_BUCKET)
 
-  const uploaded = await bucket.upload(path, file, { contentType: storageContentType(mimeType), upsert: false })
+  const body = storageBody(file, mimeType)
+  const uploaded = await bucket.upload(path, body, { contentType: body.type, upsert: false })
   if (uploaded.error) throw uploaded.error
 
   const row = await supabase

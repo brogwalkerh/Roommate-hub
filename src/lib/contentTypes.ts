@@ -41,3 +41,12 @@ export function storageContentType(type: string | null | undefined): string {
   const t = (type ?? '').toLowerCase().split(';')[0].trim()
   return SAFE.has(t) ? t : DOWNLOAD_ONLY_TYPE
 }
+
+/**
+ * The file's bytes as a Blob typed with storageContentType(type), ready to upload.
+ * supabase-js sends a Blob as form data with the Blob's own type and ignores the
+ * contentType option, so the type has to travel on the Blob itself.
+ */
+export function storageBody(file: Blob, type: string | null | undefined = file.type): Blob {
+  return file.slice(0, file.size, storageContentType(type))
+}
