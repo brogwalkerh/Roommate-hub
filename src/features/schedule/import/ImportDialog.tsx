@@ -1,19 +1,41 @@
 import { startOfWeek } from 'date-fns'
 import { FileUp, TriangleAlert } from 'lucide-react'
-import { useId, useRef, useState, type DragEvent } from 'react'
+import { useId, useMemo, useRef, useState, type DragEvent } from 'react'
 import { PersonPicker } from '../../../components/Person'
 import { Button } from '../../../components/ui/Button'
 import { Dialog } from '../../../components/ui/Dialog'
-import { Checkbox, TextField } from '../../../components/ui/Field'
+import { Checkbox, SelectField, TextField } from '../../../components/ui/Field'
 import { LoadingBlock } from '../../../components/ui/Status'
 import { useMembers } from '../../../household/useHousehold'
 import { toDateInput } from '../../../lib/dates'
 import { friendlyError } from '../../../lib/errors'
+import { addDaysToDateString } from '../eventTime'
 import { useImportEvents, useParseSchedule } from './hooks'
-import { rowProblem, rowToFields, type ImportRow } from './importRows'
+import { expandWeekly, lastStartDay, rowProblem, rowsSpanDays, type ImportRow } from './importRows'
 import { SCHEDULE_ACCEPT, scheduleFileKind } from './readScheduleFile'
 
 type Props = { onClose: () => void }
+
+const PERSON_KEY = 'import.person'
+/** More than this in one go is almost always a wrong end date. */
+const MAX_IMPORT = 1000
+const DEFAULT_REPEAT_WEEKS = 12
+
+function loadPerson(): string | null {
+  try {
+    return localStorage.getItem(PERSON_KEY)
+  } catch {
+    return null
+  }
+}
+
+function savePerson(value: string) {
+  try {
+    localStorage.setItem(PERSON_KEY, value)
+  } catch {
+    // Private mode or storage blocked: the field just won't be remembered.
+  }
+}
 
 /** Upload a schedule (PDF, photo, spreadsheet), check what was read, then add it to the calendar. */
 export function ImportDialog({ onClose }: Props) {
@@ -23,11 +45,17 @@ export function ImportDialog({ onClose }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   const [weekOf, setWeekOf] = useState(() => toDateInput(startOfWeek(new Date(), { weekStartsOn: 1 })))
+  // undefined until typed: defaults to the remembered name, then to my display name.
+  const [typedPerson, setTypedPerson] = useState<string | undefined>(() => loadPerson() ?? undefined)
+  const person = typedPerson ?? me?.display_name ?? ''
   const [rows, setRows] = useState<ImportRow[] | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   // undefined until picked: defaults to me, even if profiles load after the dialog opens.
   const [pickedOwner, setOwnerId] = useState<string | null | undefined>(undefined)
   const ownerId = pickedOwner === undefined ? (me?.id ?? null) : pickedOwner
+  const [repeatOn, setRepeatOn] = useState(false)
+  const [everyWeeks, setEveryWeeks] = useState(1)
+  const [until, setUntil] = useState('')
 
   const pick = (picked: File | undefined) => {
     if (!picked) return
@@ -43,16 +71,36 @@ export function ImportDialog({ onClose }: Props) {
 
   const read = () => {
     if (!file) return
+    savePerson(person)
     parse.mutate(
-      { file, today: toDateInput(new Date()), weekOf },
+      { file, today: toDateInput(new Date()), weekOf, person },
       {
         onSuccess: (result) => {
           setRows(result.rows)
           setWarnings(result.warnings)
+          // A two-week rota repeats every two weeks; anything shorter, weekly.
+          setEveryWeeks(rowsSpanDays(result.rows) > 7 ? 2 : 1)
+          const last = lastStartDay(result.rows)
+          setUntil(last ? addDaysToDateString(last, DEFAULT_REPEAT_WEEKS * 7) : '')
+          setRepeatOn(false)
         },
       },
     )
   }
+
+  const chosen = useMemo(() => rows?.filter((r) => r.include) ?? [], [rows])
+  const lastDay = lastStartDay(chosen)
+  const repeatProblem = !repeatOn
+    ? null
+    : !/^\d{4}-\d{2}-\d{2}$/.test(until)
+      ? 'Pick an end date.'
+      : lastDay && until < lastDay
+        ? 'The end date is before the last event.'
+        : null
+  const expanded = useMemo(
+    () => (repeatOn && !repeatProblem ? expandWeekly(chosen, everyWeeks, until) : chosen),
+    [chosen, repeatOn, repeatProblem, everyWeeks, until],
+  )
 
   if (rows === null) {
     return (
@@ -80,6 +128,14 @@ export function ImportDialog({ onClose }: Props) {
             </p>
           )}
           <TextField
+            label="Name on the schedule"
+            value={person}
+            maxLength={80}
+            autoComplete="off"
+            onChange={(e) => setTypedPerson(e.target.value)}
+            hint="On a team rota, only this person’s row is read. Leave empty to read everything."
+          />
+          <TextField
             label="Week of"
             type="date"
             value={weekOf}
@@ -97,15 +153,17 @@ export function ImportDialog({ onClose }: Props) {
     )
   }
 
-  const chosen = rows.filter((r) => r.include)
   const hasProblem = chosen.some((r) => rowProblem(r) !== null)
+  const tooMany = expanded.length > MAX_IMPORT
+  const canAdd = chosen.length > 0 && !hasProblem && !repeatProblem && !tooMany
+  const daysOff = rows.filter((r) => r.dayOff).length
   const update = (key: string, patch: Partial<ImportRow>) =>
     setRows((prev) => prev && prev.map((r) => (r.key === key ? { ...r, ...patch } : r)))
   const setAll = (include: boolean) => setRows((prev) => prev && prev.map((r) => ({ ...r, include })))
   const submit = () => {
-    if (chosen.length === 0 || hasProblem) return
+    if (!canAdd) return
     add.mutate(
-      chosen.map((r) => rowToFields(r, ownerId)),
+      { rows: chosen, ownerId, repeat: repeatOn ? { everyWeeks, until } : null },
       { onSuccess: onClose },
     )
   }
@@ -121,8 +179,8 @@ export function ImportDialog({ onClose }: Props) {
           <Button className="mr-auto" onClick={() => setRows(null)} disabled={add.isPending}>
             Back
           </Button>
-          <Button variant="primary" disabled={chosen.length === 0 || hasProblem} loading={add.isPending} onClick={submit}>
-            {chosen.length === 1 ? 'Add 1 event' : `Add ${chosen.length} events`}
+          <Button variant="primary" disabled={!canAdd} loading={add.isPending} onClick={submit}>
+            {expanded.length === 1 ? 'Add 1 event' : `Add ${expanded.length} events`}
           </Button>
         </>
       }
@@ -140,13 +198,17 @@ export function ImportDialog({ onClose }: Props) {
         )}
 
         {rows.length === 0 ? (
-          <p className="text-muted">No events found in that file. Go back and try a clearer photo or another file.</p>
+          <p className="text-muted">
+            No events found in that file{person ? ` for “${person}”` : ''}. Go back and try a clearer photo, another file, or a
+            different name.
+          </p>
         ) : (
           <>
             <PersonPicker label="Whose schedule is it?" bothLabel="Household" value={ownerId} onChange={setOwnerId} />
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="mr-auto text-sm text-muted">
                 Found {rows.length === 1 ? '1 event' : `${rows.length} events`}. Untick any you don’t want, or fix them first.
+                {daysOff > 0 && ` ${daysOff === 1 ? 'The day off starts' : `${daysOff} days off start`} unticked.`}
               </p>
               <Button size="sm" variant="ghost" onClick={() => setAll(true)}>
                 Select all
@@ -160,6 +222,36 @@ export function ImportDialog({ onClose }: Props) {
                 <RowEditor key={row.key} row={row} onChange={(patch) => update(row.key, patch)} />
               ))}
             </ul>
+            <div className="flex flex-col gap-3 rounded-xl bg-surface-2 p-3">
+              <Checkbox label="Repeat this schedule" checked={repeatOn} onChange={(e) => setRepeatOn(e.target.checked)} />
+              {repeatOn && (
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-[9rem_11rem]">
+                  <SelectField label="Every" value={String(everyWeeks)} onChange={(e) => setEveryWeeks(Number(e.target.value))}>
+                    <option value="1">Week</option>
+                    <option value="2">2 weeks</option>
+                  </SelectField>
+                  <TextField
+                    label="Until"
+                    type="date"
+                    value={until}
+                    min={lastDay ?? undefined}
+                    max={lastDay ? addDaysToDateString(lastDay, 365) : undefined}
+                    error={repeatProblem}
+                    onChange={(e) => setUntil(e.target.value)}
+                  />
+                </div>
+              )}
+              <p className="text-sm text-muted">
+                {repeatOn && !repeatProblem
+                  ? `Copies the ticked events forward every ${everyWeeks === 1 ? 'week' : '2 weeks'}: ${expanded.length} in total. Copies already on the calendar are skipped.`
+                  : 'For a weekly timetable or a rota that repeats: copies the ticked events forward until a date you pick.'}
+              </p>
+              {tooMany && (
+                <p role="alert" className="text-sm text-danger">
+                  That’s over {MAX_IMPORT.toLocaleString()} events. Pick an earlier end date.
+                </p>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -268,8 +360,15 @@ function RowEditor({ row, onChange }: { row: ImportRow; onChange: (patch: Partia
           {(row.location || row.notes) && (
             <p className="text-sm break-words text-muted">{[row.location, row.notes].filter(Boolean).join(' · ')}</p>
           )}
-          {row.duplicate && (
-            <p className="w-fit rounded-md bg-warn-soft px-2 py-0.5 text-sm font-medium text-warn">Already on the calendar</p>
+          {(row.duplicate || row.dayOff) && (
+            <div className="flex flex-wrap gap-2">
+              {row.duplicate && (
+                <p className="w-fit rounded-md bg-warn-soft px-2 py-0.5 text-sm font-medium text-warn">Already on the calendar</p>
+              )}
+              {row.dayOff && (
+                <p className="w-fit rounded-md border border-line bg-surface px-2 py-0.5 text-sm font-medium text-muted">Day off</p>
+              )}
+            </div>
           )}
           {problem && (
             <p role="alert" className="text-sm text-danger">

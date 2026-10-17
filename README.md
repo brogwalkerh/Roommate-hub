@@ -81,12 +81,14 @@ The **Home** page shows a card for each area:
 Got a work rota, class timetable or shift plan? Tap **Import** on the Schedule page.
 
 1. Choose a file: a **PDF**, a **photo or screenshot**, or a **spreadsheet** (Excel, Numbers exported to Excel, OpenDocument, CSV). On a phone you can take a photo of a printed schedule.
-2. If the schedule lists weekdays but no dates (a typical weekly rota), set **Week of** to the week it's for.
-3. Tap **Read schedule**. Claude reads the file, which can take up to a minute.
-4. Check the list. Every event can be renamed, moved to another day or time, switched to all day, or unticked. Events already on your calendar are marked **Already on the calendar** and start unticked, so re-importing an updated rota doesn't add doubles.
-5. Pick **Whose schedule is it?** and tap **Add events**.
+2. **Name on the schedule** starts as your own name. On a team rota that lists everyone, only that person's row is read. Clear it to read the whole file. The app remembers what you typed last time.
+3. If the schedule lists weekdays but no dates (a typical weekly rota), set **Week of** to the week it's for.
+4. Tap **Read schedule**. Claude reads the file, which can take up to a minute.
+5. Check the list. Every event can be renamed, moved to another day or time, switched to all day, or unticked. Events already on your calendar are marked **Already on the calendar** and start unticked, so re-importing an updated rota doesn't add doubles. Days off (OFF, leave, holiday) are listed too but start unticked; tick them if you want them on the calendar.
+6. To fill in more than the one week or fortnight the file shows, tick **Repeat this schedule**, choose every **week** or **2 weeks**, and pick an end date. The button shows how many events that makes. Copies that already exist on the calendar are skipped.
+7. Pick **Whose schedule is it?** and tap **Add events**.
 
-Tips: a straight, well-lit photo reads best. A shift that ends after midnight (say 10 PM to 6 AM) is saved as ending the next morning. If something looks wrong, fix it in the list or edit the event afterwards.
+Tips: a straight, well-lit photo reads best. A shift that ends after midnight (say 10 PM to 6 AM) is saved as ending the next morning. Claude's notes about anything it was unsure of appear at the top of the list. If something looks wrong, fix it in the list or edit the event afterwards.
 
 ### Reminders
 

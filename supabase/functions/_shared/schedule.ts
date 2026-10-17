@@ -16,6 +16,8 @@ export type ParseRequest = {
   today: string
   /** Week to place a schedule on when it names weekdays but no dates, "yyyy-mm-dd" (a Monday). */
   weekOf: string | null
+  /** Whose row to read on a schedule that lists several people; null reads everything. */
+  person: string | null
 }
 
 /** One event as the app receives it. Times are local wall-clock times. */
@@ -32,6 +34,8 @@ export type ParsedEvent = {
   endTime: string
   location: string
   notes: string
+  /** An OFF / leave / holiday entry rather than somewhere to be. */
+  dayOff: boolean
 }
 
 export const MAX_PDF_BYTES = 10 * 1024 * 1024
@@ -67,6 +71,7 @@ export function validateParseRequest(body: unknown): { ok: true; value: ParseReq
   const today = typeof b.today === 'string' ? b.today : ''
   const weekOf = typeof b.week_of === 'string' && b.week_of !== '' ? b.week_of : null
   const filename = (typeof b.filename === 'string' ? b.filename : '').slice(0, 200)
+  const person = typeof b.person === 'string' ? b.person.replace(/\s+/g, ' ').trim().slice(0, 80) : ''
 
   if (!isRealDate(today)) return { ok: false, error: 'invalid_request' }
   if (weekOf !== null && !isRealDate(weekOf)) return { ok: false, error: 'invalid_request' }
@@ -87,7 +92,7 @@ export function validateParseRequest(body: unknown): { ok: true; value: ParseReq
   } else {
     return { ok: false, error: 'unsupported_file' }
   }
-  return { ok: true, value: { source, filename, today, weekOf } }
+  return { ok: true, value: { source, filename, today, weekOf, person: person || null } }
 }
 
 /** JSON schema for the structured output. Every field is required; "" stands for "none". */
@@ -110,8 +115,12 @@ export const SCHEDULE_SCHEMA = {
           end_time: { type: 'string', description: '24-hour HH:MM; "" if the schedule gives no end time' },
           location: { type: 'string', description: 'Place or room if given, else ""' },
           notes: { type: 'string', description: 'Other useful details from the schedule (role, station, reference), else ""' },
+          day_off: {
+            type: 'boolean',
+            description: 'true for a day off, leave or holiday entry (OFF, REQ OFF, PTO, vacation, bank holiday); false for a shift, class or appointment',
+          },
         },
-        required: ['title', 'date', 'end_date', 'all_day', 'start_time', 'end_time', 'location', 'notes'],
+        required: ['title', 'date', 'end_date', 'all_day', 'start_time', 'end_time', 'location', 'notes', 'day_off'],
         additionalProperties: false,
       },
     },
@@ -130,19 +139,25 @@ export const SYSTEM_PROMPT = `You read a person's schedule (a work rota, class t
 Rules:
 - One event per occurrence. If the schedule shows a repeating pattern over a date range (for example "Mon-Fri 9-5, Oct 20 to Oct 31"), list each day separately.
 - Use 24-hour HH:MM times. If an item has a start but no end time, leave end_time empty. A shift that ends after midnight keeps its real end time (e.g. 22:00 to 06:00).
-- Mark days off, holidays and leave as all-day events only when the schedule names them explicitly; skip blank cells.
-- Keep titles short and natural ("Work", "Chemistry lecture", "Night shift"). Put extra details such as role, station or room in location or notes.
-- If the schedule covers several people, include only rows that clearly belong to the schedule's owner when that is obvious; if you cannot tell whose rows are whose, include everything and add a warning.
+- Mark days off, leave and holidays (OFF, REQ OFF, PTO, vacation) as all-day events with day_off true, but only when the schedule names them explicitly; skip blank cells. Codes you cannot interpret (e.g. "HW", "MLA") go in notes with day_off false, and get a warning.
+- Keep titles short and natural ("Work", "Chemistry lecture", "Night shift", "Day off"). Put extra details such as role, station or room in location or notes.
+- Times like "2:30P-11:00P" mean 14:30 to 23:00; "9:00-4:00A" means 21:00 to 04:00 the next morning.
+- If the schedule covers several people and the instructions name one of them, include only that person's row or column and nothing else. If no person is named, include only rows that clearly belong to the schedule's owner when that is obvious; otherwise include everything and add a warning.
 - Never invent items. If something is unreadable or ambiguous, skip it or include your best reading and say so in warnings.`
 
 /** The instruction sent with the file. */
-export function buildUserPrompt(req: Pick<ParseRequest, 'today' | 'weekOf' | 'filename'>): string {
+export function buildUserPrompt(req: Pick<ParseRequest, 'today' | 'weekOf' | 'filename' | 'person'>): string {
   const lines = [
     `Today is ${req.today}. Resolve dates without a year to the nearest sensible year around today.`,
     req.weekOf
       ? `If the schedule names weekdays but no dates, place them in the week starting Monday ${req.weekOf}.`
       : 'If the schedule names weekdays but no dates, place them in the week starting on the Monday on or after today.',
   ]
+  if (req.person) {
+    lines.push(
+      `The schedule may list several people. Include only the items for "${req.person}". Match the name loosely: first name, surname, nickname, initials or different capitalization. Leave out every other person's rows. If no row or column belongs to that person, return no events and explain in warnings.`,
+    )
+  }
   if (req.filename) lines.push(`The file is named "${req.filename}".`)
   lines.push('List the events in this schedule.')
   return lines.join('\n')
@@ -178,7 +193,8 @@ export function normalizeEvents(raw: unknown): { events: ParsedEvent[]; warnings
     const startTime = clean(e.start_time, 5)
     const endTime = clean(e.end_time, 5)
     const hasStart = TIME_RE.test(startTime)
-    const allDay = e.all_day === true || !hasStart
+    const dayOff = e.day_off === true
+    const allDay = dayOff || e.all_day === true || !hasStart
     const endDate = clean(e.end_date, 10)
     events.push({
       title,
@@ -189,6 +205,7 @@ export function normalizeEvents(raw: unknown): { events: ParsedEvent[]; warnings
       endTime: allDay || !TIME_RE.test(endTime) ? '' : endTime,
       location: clean(e.location, TEXT_MAX),
       notes: clean(e.notes, TEXT_MAX),
+      dayOff,
     })
   }
 

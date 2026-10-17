@@ -1,4 +1,18 @@
-import { parsedRange, rowProblem, rowsFromParsed, rowToFields, timedRange, type ImportRow, type ParsedEvent } from './importRows'
+import {
+  daysRange,
+  existingKeys,
+  expandWeekly,
+  isDuplicate,
+  lastStartDay,
+  rowProblem,
+  rowsFromParsed,
+  rowsRange,
+  rowsSpanDays,
+  rowToFields,
+  timedRange,
+  type ImportRow,
+  type ParsedEvent,
+} from './importRows'
 
 const parsed = (o: Partial<ParsedEvent> = {}): ParsedEvent => ({
   title: 'Work',
@@ -9,6 +23,7 @@ const parsed = (o: Partial<ParsedEvent> = {}): ParsedEvent => ({
   endTime: '17:00',
   location: 'Café Rio',
   notes: '',
+  dayOff: false,
   ...o,
 })
 
@@ -53,6 +68,12 @@ describe('rowsFromParsed', () => {
       [false, true],
       [true, false],
     ])
+  })
+
+  it('unticks days off but keeps them in the list', () => {
+    const [shift, off] = rowsFromParsed([parsed(), parsed({ title: 'Day off', date: '2026-10-21', allDay: true, dayOff: true })], [])
+    expect(shift).toMatchObject({ include: true, dayOff: false })
+    expect(off).toMatchObject({ include: false, dayOff: true, allDay: true, startDay: '2026-10-21' })
   })
 })
 
@@ -102,14 +123,66 @@ describe('rowToFields', () => {
   })
 })
 
-describe('parsedRange', () => {
-  it('covers every parsed day with a day to spare', () => {
-    const range = parsedRange([parsed({ date: '2026-10-22' }), parsed({ date: '2026-10-20', endDate: '2026-10-25' })])
-    expect(range?.start).toEqual(new Date(2026, 9, 19))
-    expect(range?.end).toEqual(new Date(2026, 9, 27))
+describe('expandWeekly', () => {
+  const rows = [row(), row({ key: '1', title: 'Night', startDay: '2026-10-24', startTime: '22:00', endTime: '06:00' })]
+
+  it('copies each row forward every week up to the end date, originals first', () => {
+    const out = expandWeekly(rows, 1, '2026-11-07')
+    expect(out.map((r) => [r.key, r.startDay, r.generated ?? false])).toEqual([
+      ['0', '2026-10-20', false],
+      ['0+1', '2026-10-27', true],
+      ['0+2', '2026-11-03', true],
+      ['1', '2026-10-24', false],
+      ['1+1', '2026-10-31', true],
+      ['1+2', '2026-11-07', true],
+    ])
+    expect(out[4]).toMatchObject({ title: 'Night', startTime: '22:00', endTime: '06:00', include: true })
   })
 
-  it('is null without events', () => {
-    expect(parsedRange([])).toBeNull()
+  it('can repeat every two weeks and moves all-day spans as a whole', () => {
+    const leave = row({ allDay: true, startDay: '2026-10-20', endDay: '2026-10-22' })
+    const out = expandWeekly([leave], 2, '2026-11-20')
+    expect(out.map((r) => [r.startDay, r.endDay])).toEqual([
+      ['2026-10-20', '2026-10-22'],
+      ['2026-11-03', '2026-11-05'],
+      ['2026-11-17', '2026-11-19'],
+    ])
+  })
+
+  it('leaves rows alone without a usable end date', () => {
+    expect(expandWeekly(rows, 1, '')).toBe(rows)
+    expect(expandWeekly(rows, 1, '2026-10-01')).toHaveLength(2)
+  })
+})
+
+describe('existingKeys / isDuplicate', () => {
+  it('matches on name and start, ignoring case and spacing', () => {
+    const taken = existingKeys([
+      { title: 'WORK ', all_day: false, starts_at: local('2026-10-27T09:00'), start_date: null },
+      { title: 'Day off', all_day: true, starts_at: null, start_date: '2026-10-21' },
+      { title: 'broken', all_day: false, starts_at: null, start_date: null },
+    ])
+    expect(isDuplicate(row({ startDay: '2026-10-27' }), taken)).toBe(true)
+    expect(isDuplicate(row({ startDay: '2026-10-27', startTime: '10:00' }), taken)).toBe(false)
+    expect(isDuplicate(row({ title: 'day off', allDay: true, startDay: '2026-10-21' }), taken)).toBe(true)
+    expect(isDuplicate(row({ startDay: 'nope' }), taken)).toBe(false)
+  })
+})
+
+describe('row date helpers', () => {
+  it('measures the span and finds the last day', () => {
+    const rows = [row({ startDay: '2026-10-24' }), row({ startDay: '2026-10-17' }), row({ startDay: '2026-10-30' })]
+    expect(rowsSpanDays(rows)).toBe(13)
+    expect(rowsSpanDays([row()])).toBe(0)
+    expect(lastStartDay(rows)).toBe('2026-10-30')
+    expect(lastStartDay([])).toBeNull()
+  })
+
+  it('covers every day with a day to spare', () => {
+    const range = daysRange([parsed({ date: '2026-10-22' }), parsed({ date: '2026-10-20', endDate: '2026-10-25' })])
+    expect(range?.start).toEqual(new Date(2026, 9, 19))
+    expect(range?.end).toEqual(new Date(2026, 9, 27))
+    expect(daysRange([])).toBeNull()
+    expect(rowsRange([row({ allDay: true, startDay: '2026-10-20', endDay: '2026-10-25' })])?.end).toEqual(new Date(2026, 9, 27))
   })
 })

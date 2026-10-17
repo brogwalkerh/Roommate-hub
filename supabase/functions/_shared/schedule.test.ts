@@ -6,7 +6,7 @@ describe('validateParseRequest', () => {
   it('accepts a PDF, an image and text', () => {
     expect(validateParseRequest({ source: pdf, today: '2026-10-17', filename: 'rota.pdf' })).toEqual({
       ok: true,
-      value: { source: pdf, filename: 'rota.pdf', today: '2026-10-17', weekOf: null },
+      value: { source: pdf, filename: 'rota.pdf', today: '2026-10-17', weekOf: null, person: null },
     })
     const image = { type: 'image', media_type: 'image/jpeg', data: 'abcd' }
     expect(validateParseRequest({ source: image, today: '2026-10-17', week_of: '2026-10-19' })).toMatchObject({
@@ -14,6 +14,16 @@ describe('validateParseRequest', () => {
       value: { source: image, weekOf: '2026-10-19' },
     })
     expect(validateParseRequest({ source: { type: 'text', data: 'Mon,9-5' }, today: '2026-10-17' })).toMatchObject({ ok: true })
+  })
+
+  it('cleans up the person to read', () => {
+    expect(validateParseRequest({ source: pdf, today: '2026-10-17', person: '  Brogden   W. ' })).toMatchObject({
+      value: { person: 'Brogden W.' },
+    })
+    expect(validateParseRequest({ source: pdf, today: '2026-10-17', person: '   ' })).toMatchObject({ value: { person: null } })
+    expect(validateParseRequest({ source: pdf, today: '2026-10-17', person: 'x'.repeat(100) })).toMatchObject({
+      value: { person: 'x'.repeat(80) },
+    })
   })
 
   it.each([
@@ -40,10 +50,17 @@ describe('base64Bytes', () => {
 
 describe('buildUserPrompt', () => {
   it('names today and the week for undated schedules', () => {
-    const text = buildUserPrompt({ today: '2026-10-17', weekOf: '2026-10-19', filename: 'week.png' })
+    const text = buildUserPrompt({ today: '2026-10-17', weekOf: '2026-10-19', filename: 'week.png', person: null })
     expect(text).toContain('Today is 2026-10-17')
     expect(text).toContain('week starting Monday 2026-10-19')
     expect(text).toContain('"week.png"')
+    expect(text).not.toContain('several people')
+  })
+
+  it('asks for one person’s row when a name is given', () => {
+    const text = buildUserPrompt({ today: '2026-10-17', weekOf: null, filename: '', person: 'Brogden' })
+    expect(text).toContain('Include only the items for "Brogden"')
+    expect(text).toContain('return no events')
   })
 })
 
@@ -56,6 +73,7 @@ const ev = (o: Record<string, unknown> = {}) => ({
   end_time: '17:00',
   location: '',
   notes: '',
+  day_off: false,
   ...o,
 })
 
@@ -68,8 +86,8 @@ describe('normalizeEvents', () => {
     expect(out.dropped).toBe(0)
     expect(out.warnings).toEqual(['Row 3 was blurry'])
     expect(out.events).toEqual([
-      { title: 'Night shift', date: '2026-10-20', endDate: '2026-10-20', allDay: false, startTime: '22:00', endTime: '06:00', location: '', notes: '' },
-      { title: 'Work', date: '2026-10-21', endDate: '2026-10-21', allDay: false, startTime: '09:00', endTime: '17:00', location: '', notes: '' },
+      { title: 'Night shift', date: '2026-10-20', endDate: '2026-10-20', allDay: false, startTime: '22:00', endTime: '06:00', location: '', notes: '', dayOff: false },
+      { title: 'Work', date: '2026-10-21', endDate: '2026-10-21', allDay: false, startTime: '09:00', endTime: '17:00', location: '', notes: '', dayOff: false },
     ])
   })
 
@@ -86,6 +104,11 @@ describe('normalizeEvents', () => {
     }).events
     expect(a).toMatchObject({ allDay: true, startTime: '', endTime: '' })
     expect(b).toMatchObject({ allDay: true, startTime: '', endTime: '' })
+  })
+
+  it('makes a day off all day, even if times slipped in', () => {
+    const [off] = normalizeEvents({ events: [ev({ title: 'REQ OFF', day_off: true, start_time: '09:00' })], warnings: [] }).events
+    expect(off).toMatchObject({ dayOff: true, allDay: true, startTime: '', endTime: '' })
   })
 
   it('keeps a multi-day all-day span, and ignores an end date before the start', () => {

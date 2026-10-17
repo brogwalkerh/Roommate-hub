@@ -45,6 +45,7 @@ beforeEach(() => {
   fake.state.existing = []
   fake.state.inserted = []
   fake.state.invoke.mockClear()
+  localStorage.clear()
 })
 
 const event = (o: Record<string, unknown>) => ({
@@ -56,6 +57,7 @@ const event = (o: Record<string, unknown>) => ({
   endTime: '17:00',
   location: 'Café Rio',
   notes: '',
+  dayOff: false,
   ...o,
 })
 
@@ -94,11 +96,13 @@ it('reads a schedule, lets you review it, and adds the chosen events', async () 
   const onClose = renderDialog()
 
   expect(screen.getByRole('button', { name: 'Read schedule' })).toBeDisabled()
+  // The person to read defaults to my own name and is sent along.
+  expect(screen.getByLabelText('Name on the schedule')).toHaveValue('Alex')
   await pickAndRead(user, new File(['Mon,9-5'], 'rota.csv', { type: 'text/csv' }))
 
   expect(await screen.findByText('One row was hard to read.')).toBeInTheDocument()
   expect(fake.state.invoke).toHaveBeenCalledWith('parse-schedule', {
-    body: expect.objectContaining({ source: { type: 'text', data: 'Mon,9-5' }, filename: 'rota.csv' }),
+    body: expect.objectContaining({ source: { type: 'text', data: 'Mon,9-5' }, filename: 'rota.csv', person: 'Alex' }),
   })
   // The second Work is already on the calendar, so it starts unticked.
   const boxes = screen.getAllByRole('checkbox', { name: /^Add / })
@@ -122,6 +126,64 @@ it('reads a schedule, lets you review it, and adds the chosen events', async () 
       ends_at: new Date('2026-10-23T06:00').toISOString(),
     }),
   ])
+})
+
+it('remembers the name typed last time and sends an empty name as nothing', async () => {
+  fake.state.parsed = { data: { events: [], warnings: [] }, error: null }
+  const user = userEvent.setup()
+  renderDialog()
+  const name = screen.getByLabelText('Name on the schedule')
+  await user.clear(name)
+  await user.type(name, 'Brogden')
+  await pickAndRead(user, new File(['x'], 'rota.csv', { type: 'text/csv' }))
+  expect(await screen.findByText(/No events found in that file for “Brogden”/)).toBeInTheDocument()
+  expect(fake.state.invoke.mock.calls[0][1].body.person).toBe('Brogden')
+  expect(localStorage.getItem('import.person')).toBe('Brogden')
+
+  await user.click(screen.getByRole('button', { name: 'Back' }))
+  await user.clear(screen.getByLabelText('Name on the schedule'))
+  await pickAndRead(user, new File(['x'], 'rota.csv', { type: 'text/csv' }))
+  await waitFor(() => expect(fake.state.invoke).toHaveBeenCalledTimes(2))
+  expect(fake.state.invoke.mock.calls[1][1].body.person).toBeUndefined()
+})
+
+it('leaves days off unticked and says so', async () => {
+  fake.state.parsed = {
+    data: { events: [event({}), event({ title: 'Day off', date: '2026-10-21', allDay: true, startTime: '', endTime: '', dayOff: true })], warnings: [] },
+    error: null,
+  }
+  const user = userEvent.setup()
+  renderDialog()
+  await pickAndRead(user, new File(['x'], 'rota.csv', { type: 'text/csv' }))
+  expect(await screen.findByText('Day off', { selector: 'p' })).toBeInTheDocument()
+  expect(screen.getByText(/The day off starts unticked/)).toBeInTheDocument()
+  expect(screen.getByRole('checkbox', { name: 'Add Day off' })).not.toBeChecked()
+  expect(screen.getByRole('button', { name: 'Add 1 event' })).toBeEnabled()
+})
+
+it('repeats the schedule weekly and skips copies already on the calendar', async () => {
+  fake.state.parsed = { data: { events: [event({})], warnings: [] }, error: null }
+  const user = userEvent.setup()
+  const onClose = renderDialog()
+  await pickAndRead(user, new File(['x'], 'rota.csv', { type: 'text/csv' }))
+
+  await user.click(await screen.findByRole('checkbox', { name: 'Repeat this schedule' }))
+  // Prefilled 12 weeks out; bring it in to two weeks.
+  const until = screen.getByLabelText('Until')
+  expect(until).toHaveValue('2027-01-12')
+  await user.clear(until)
+  await user.type(until, '2026-11-03')
+  expect(screen.getByText(/3 in total/)).toBeInTheDocument()
+
+  // The 27 Oct copy already exists, so only two rows are added.
+  fake.state.existing = [{ title: 'Work', all_day: false, starts_at: new Date('2026-10-27T09:00').toISOString(), start_date: null }]
+  await user.click(screen.getByRole('button', { name: 'Add 3 events' }))
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  expect(fake.state.inserted.map((r) => (r as { starts_at: string }).starts_at)).toEqual([
+    new Date('2026-10-20T09:00').toISOString(),
+    new Date('2026-11-03T09:00').toISOString(),
+  ])
+  expect(await screen.findByText('Added 2 events (1 already on the calendar)')).toBeInTheDocument()
 })
 
 it('defaults the owner to me and blocks rows with problems', async () => {
