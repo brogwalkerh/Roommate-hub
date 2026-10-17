@@ -44,7 +44,14 @@ Deno.serve(async (req) => {
         ? { type: 'image', source: { type: 'base64', media_type: source.media_type, data: source.data } }
         : { type: 'text', text: `<schedule>\n${source.data}\n</schedule>` }
 
-  const client = new Anthropic({ apiKey, timeout: 120_000, maxRetries: 1 })
+  // Organization-level keys (not scoped to a workspace) must name the workspace on every request.
+  const workspaceId = await getSecret(admin, 'anthropic_workspace_id')
+  const client = new Anthropic({
+    apiKey,
+    timeout: 120_000,
+    maxRetries: 1,
+    defaultHeaders: workspaceId ? { 'anthropic-workspace-id': workspaceId } : undefined,
+  })
   let response: Anthropic.Beta.BetaMessage
   try {
     response = await client.beta.messages.create({
@@ -60,6 +67,10 @@ Deno.serve(async (req) => {
   } catch (err) {
     if (err instanceof Anthropic.AuthenticationError || err instanceof Anthropic.PermissionDeniedError) {
       console.error('parse-schedule: Anthropic key rejected', err.status)
+      return json({ error: 'ai_not_configured' }, 503)
+    }
+    if (err instanceof Anthropic.BadRequestError && /workspace/i.test(err.message)) {
+      console.error('parse-schedule: key needs a workspace', err.message)
       return json({ error: 'ai_not_configured' }, 503)
     }
     if (err instanceof Anthropic.BadRequestError) {
