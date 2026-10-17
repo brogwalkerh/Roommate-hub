@@ -74,6 +74,19 @@ The **Home** page shows a card for each area:
 - **Blocked dates** (dates Airbnb marks unavailable) are hidden at first. Tap the **Blocked dates** chip above the calendar to show them.
 - The chips above the calendar filter what you see: **Me**, your roommate's name, **Household**, **Guest stays**, **Blocked dates**, and each personal calendar.
 - A personal calendar set to **Just “Busy”** shows only as "Busy" blocks, with no details.
+- Tap **Import** to add a whole schedule from a file. See below.
+
+### Import a schedule from a file
+
+Got a work rota, class timetable or shift plan? Tap **Import** on the Schedule page.
+
+1. Choose a file: a **PDF**, a **photo or screenshot**, or a **spreadsheet** (Excel, Numbers exported to Excel, OpenDocument, CSV). On a phone you can take a photo of a printed schedule.
+2. If the schedule lists weekdays but no dates (a typical weekly rota), set **Week of** to the week it's for.
+3. Tap **Read schedule**. Claude reads the file, which can take up to a minute.
+4. Check the list. Every event can be renamed, moved to another day or time, switched to all day, or unticked. Events already on your calendar are marked **Already on the calendar** and start unticked, so re-importing an updated rota doesn't add doubles.
+5. Pick **Whose schedule is it?** and tap **Add events**.
+
+Tips: a straight, well-lit photo reads best. A shift that ends after midnight (say 10 PM to 6 AM) is saved as ending the next morning. If something looks wrong, fix it in the list or edit the event afterwards.
 
 ### Reminders
 
@@ -176,11 +189,13 @@ Each person chooses what to get, under **Settings**, **Notifications**, **Notify
 - Only the two household accounts can see anything in the app. The database's access rules enforce this, not just the app's screens.
 - Calendar links are stored privately and cannot be viewed after saving. Files are kept in a private area and open through short-lived links.
 - The source code is public on GitHub, but it has no personal data and no secret keys. The Supabase key in the code is public by design.
+- When you import a schedule, the file is sent to Anthropic's Claude API to be read. The app doesn't keep the file, only the events you choose to add. Anthropic does not train its models on API data by default.
 
 ## Limits and costs
 
 - **Cost:** $0 a month. The app runs on GitHub Pages (free for public code) and Supabase's free plan. If you outgrow the free plan, Supabase Pro costs $25 a month.
 - **Limits:** 500 MB for the database, about 1 GB for files, and 50 MB per file.
+- **Schedule import:** uses Claude Sonnet through the Anthropic API, billed to the maintainer's Anthropic account. A typical one-page schedule costs a few cents. Each person can import up to 30 files a day, and PDFs and spreadsheets can be up to 10 MB.
 - **Pausing:** Supabase pauses free projects that go unused for seven days. Your data is kept. A daily GitHub Action called **Keep Supabase awake** pings the project to prevent the pause. If the project is paused anyway, restore it in the Supabase dashboard.
 - **GitHub:** GitHub turns off scheduled workflows after 60 days with no activity in the repository. When that happens, GitHub emails the repository owner a one-click link to turn them back on.
 
@@ -240,7 +255,8 @@ The code is cleared once it's used. Run the same statement again to issue a new 
 ### Scheduled jobs and secrets
 
 - `pg_cron` runs `sync-calendars` every 30 minutes, `send-notifications` every 5 minutes, and `generate_recurring_bills()` hourly at minute 7.
-- The header of `supabase/migrations/20261015000003_jobs.sql` explains the two Vault secrets the jobs need. The `cron_secret` in Vault must match the `CRON_SECRET` Edge Function secret. Push also needs the Edge Function secrets `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`, and optionally `VAPID_SUBJECT`.
+- The header of `supabase/migrations/20261015000003_jobs.sql` explains the two Vault secrets the jobs need. The `cron_secret` in Vault must match the `CRON_SECRET` Edge Function secret. Push also needs the Edge Function secrets `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`, and optionally `VAPID_SUBJECT`. Schedule import needs `ANTHROPIC_API_KEY` (create one at console.anthropic.com, and set a monthly spend limit there). Each secret can instead live in Vault under its lowercase name; Edge Function secrets win.
+- `parse-schedule` reads files with `claude-sonnet-5-5` using structured output, then cleans up the answer (`supabase/functions/_shared/schedule.ts`). Nothing is saved until the person confirms in the review list. The `ai_usage` table counts reads for the daily limit.
 - In Supabase, under **Authentication**, **URL Configuration**, set the **Site URL** to the app's address and list exactly that address under **Redirect URLs** (no wildcards). Otherwise, sign-up confirmation links will not lead back to the app.
 - Under **Authentication**, keep **Confirm email** on and set the minimum password length to 12.
 

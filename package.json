@@ -25,7 +25,8 @@
     "react-markdown": "^10.1.0",
     "react-router": "^8.4.0",
     "remark-gfm": "^4.0.1",
-    "temporal-polyfill": "^1.0.6"
+    "temporal-polyfill": "^1.0.6",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

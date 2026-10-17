@@ -1,6 +1,6 @@
 import { useCalendarController } from '@fullcalendar/react'
 import { useQueryClient } from '@tanstack/react-query'
-import { CalendarDays, Plus, TriangleAlert } from 'lucide-react'
+import { CalendarDays, FileUp, Plus, TriangleAlert } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Button } from '../../components/ui/Button'
@@ -14,6 +14,7 @@ import { EventDialog, type EditorTarget } from './EventDialog'
 import { newEventValues, type Selection } from './eventForm'
 import { calendarTimesToFields } from './eventTime'
 import { FeedEventDialog } from './FeedEventDialog'
+import { ImportDialog } from './import/ImportDialog'
 import { feedFilterKey, isItemVisible, loadHidden, saveHidden, toggleHidden, type FilterKey } from './filters'
 import { FilterChips, type FilterChip } from './FilterChips'
 import { fetchWindow } from './range'
@@ -34,6 +35,7 @@ export default function SchedulePage() {
   const [hidden, setHidden] = useState<FilterKey[]>(loadHidden)
   const [editor, setEditor] = useState<{ target: EditorTarget; open: boolean } | null>(null)
   const [details, setDetails] = useState<{ item: FeedItem; open: boolean } | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const { items, isLoading, error } = useCalendarItems(range)
   const feedsQuery = useCalendarFeeds()
@@ -132,9 +134,14 @@ export default function SchedulePage() {
       <PageHeader
         title="Schedule"
         actions={
-          <Button variant="primary" icon={<Plus className="size-5" aria-hidden />} onClick={() => openCreate()}>
-            Add event
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button icon={<FileUp className="size-5" aria-hidden />} onClick={() => setImporting(true)}>
+              Import
+            </Button>
+            <Button variant="primary" icon={<Plus className="size-5" aria-hidden />} onClick={() => openCreate()}>
+              Add event
+            </Button>
+          </div>
         }
       />
 
@@ -204,6 +211,7 @@ export default function SchedulePage() {
           onClose={() => setDetails((current) => current && { ...current, open: false })}
         />
       )}
+      {importing && <ImportDialog onClose={() => setImporting(false)} />}
     </div>
   )
 }

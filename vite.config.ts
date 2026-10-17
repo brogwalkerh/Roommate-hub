@@ -20,6 +20,8 @@ export default defineConfig({
       injectRegister: false,
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The spreadsheet reader is only needed for schedule import, which needs the network anyway.
+        globIgnores: ['**/xlsx-*.js'],
       },
       manifest: {
         name: 'Roommate Hub',

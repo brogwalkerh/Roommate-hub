@@ -53,6 +53,9 @@ supabase/
 - **Copy**: plain, active voice, sentence case. Name things the way a roommate would ("Add bill", "Mark done").
 - **Bills writes** go through the `save_bill` RPC (bill + shares in one transaction). Reminders are completed
   with the `complete_reminder` / `undo_complete_reminder` RPCs.
+- **AI**: schedule import calls Claude only from the `parse-schedule` Edge Function (`claude-sonnet-5-5`, structured
+  output, key in the `ANTHROPIC_API_KEY` secret). The browser never sees the key, and parsed events are only saved after
+  the person reviews them (`features/schedule/import/`).
 - **Secrets**: none in the repo. The Supabase publishable key and VAPID public key in `lib/config.ts` are
   public by design. Calendar feed URLs are write-only (the `url` column can't be selected by clients).
 - **Tests**: Vitest, `*.test.ts(x)` next to the code. Pure logic (money splits, date math, parsing) must be

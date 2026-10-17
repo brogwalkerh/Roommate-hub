@@ -13,6 +13,18 @@ export function friendlyError(error: unknown): string {
   if (/signup_not_allowed|Database error saving new user/i.test(message)) {
     return 'That email and invite code don’t match. Check the code, or ask whoever set up the app for a new one.'
   }
+  // Schedule import (readScheduleFile and the parse-schedule function)
+  if (/^unsupported_file$/.test(message)) return 'Pick a PDF, a photo or screenshot, or a spreadsheet (Excel, CSV).'
+  if (/^unsupported_image$/.test(message)) {
+    return 'This browser can’t open that photo. Take a screenshot of it, or export it as JPEG or PNG.'
+  }
+  if (/^file_too_large$/.test(message)) return 'That file is too big to read. PDFs and spreadsheets can be up to 10 MB.'
+  if (/^empty_file$/.test(message)) return 'That file looks empty.'
+  if (/^unreadable$/.test(message)) return 'Couldn’t read a schedule in that file. Try a clearer photo or a different file.'
+  if (/^too_long$/.test(message)) return 'That schedule is too long to read in one go. Split it into smaller files.'
+  if (/^ai_not_configured$/.test(message)) return 'Schedule import isn’t set up yet: the app needs its Anthropic API key.'
+  if (/^ai_busy$/.test(message)) return 'The schedule reader is busy. Try again in a minute.'
+  if (/^import_limit$/.test(message)) return 'You’ve imported a lot of schedules today. Try again tomorrow.'
   if (/Invalid login credentials/i.test(message)) return 'That email and password don’t match.'
   if (/Email not confirmed/i.test(message)) {
     return 'Confirm your email first. Check your inbox for the link we sent.'
