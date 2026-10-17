@@ -18,6 +18,10 @@ Only the two household members can create an account. Each of you gets a one-tim
 
 Enter your email and password, then tap **Sign in**. If you forget your password, tap **Forgot your password?** and open the reset link on this device.
 
+### Invite your roommate
+
+Go to **Settings → Your roommate**, enter their email and tap **Create invite**. You get a one-time code and a ready-made message with the link, their email and the code. Tap **Share…** (or **Copy message**) and send it however you like. The code is shown only once and works only with that email; if they lose it, tap **New code**. Once they've joined, this panel just says so.
+
 ### Set your name and color
 
 Open **Settings** and find the **You** section.
@@ -244,7 +248,9 @@ The deploy workflow does not pass `VITE_` variables. Before the first deploy, pu
 
 ### Add a roommate
 
-An account can be created only with an email listed in `public.allowed_emails` together with that email's one-time invite code. This stops anyone who guesses a household email from registering it first. Run this in the Supabase SQL editor, with the address in lowercase and a long random code you then share privately:
+Normally you do this in the app: **Settings → Your roommate → Create invite** (see the user guide above). It calls the `create_invite` database function, which stores only a bcrypt hash of the code in `public.allowed_emails` and refuses once the household has two members.
+
+An account can be created only with an email listed in `public.allowed_emails` together with that email's one-time invite code. This stops anyone who guesses a household email from registering it first. If you ever need to do it by hand, run this in the Supabase SQL editor, with the address in lowercase and a long random code you then share privately:
 
 ```sql
 insert into public.allowed_emails (email, code_hash)

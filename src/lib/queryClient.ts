@@ -28,4 +28,6 @@ export const qk = {
   balances: ['balances'] as const,
   files: ['files'] as const,
   pushSubscriptions: ['push_subscriptions'] as const,
+  /** pending_invites() RPC; not a table, so no realtime. */
+  invites: ['invites'] as const,
 }

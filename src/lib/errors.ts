@@ -25,6 +25,9 @@ export function friendlyError(error: unknown): string {
   if (/^ai_not_configured$/.test(message)) return 'Schedule import isn’t set up yet: the app needs its Anthropic API key.'
   if (/^ai_busy$/.test(message)) return 'The schedule reader is busy. Try again in a minute.'
   if (/^import_limit$/.test(message)) return 'You’ve imported a lot of schedules today. Try again tomorrow.'
+  // Invites
+  if (/household_full/.test(message)) return 'Your household already has two people.'
+  if (/not_member/.test(message)) return 'Only household members can do that.'
   if (/Invalid login credentials/i.test(message)) return 'That email and password don’t match.'
   if (/Email not confirmed/i.test(message)) {
     return 'Confirm your email first. Check your inbox for the link we sent.'

@@ -376,6 +376,9 @@ export type Database = {
         Returns: Database['public']['Tables']['bills']['Row']
       }
       generate_recurring_bills: { Args: Record<PropertyKey, never>; Returns: number }
+      create_invite: { Args: { p_email: string }; Returns: string }
+      pending_invites: { Args: Record<PropertyKey, never>; Returns: string[] }
+      revoke_invite: { Args: { p_email: string }; Returns: undefined }
       next_occurrence: {
         Args: {
           p_anchor: string
