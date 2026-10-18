@@ -10,6 +10,7 @@ import { useMembers } from '../../household/useHousehold'
 import { qk } from '../../lib/queryClient'
 import { toCalendarEvent } from './calendarEvents'
 import { CalendarView, type EventTimesChange } from './CalendarView'
+import { eventLabel, initialOf, useDisplayPrefs } from './display'
 import { EventDialog, type EditorTarget } from './EventDialog'
 import { newEventValues, type Selection } from './eventForm'
 import { calendarTimesToFields } from './eventTime'
@@ -45,8 +46,19 @@ export default function SchedulePage() {
   const feeds = feedsQuery.data
   const meId = me?.id ?? null
 
+  const display = useDisplayPrefs()
   const visibleItems = useMemo(() => items.filter((item) => isItemVisible(item, hidden, meId)), [items, hidden, meId])
-  const calendarEvents = useMemo(() => visibleItems.map(toCalendarEvent), [visibleItems])
+  const calendarEvents = useMemo(() => {
+    const names = new Map<string, string>()
+    if (me) names.set(me.id, me.display_name)
+    if (roommate) names.set(roommate.id, roommate.display_name)
+    return visibleItems.map((item) =>
+      toCalendarEvent(item, {
+        label: eventLabel(item, display.label, initialOf(item.ownerId ? names.get(item.ownerId) : null)),
+        bold: display.bold,
+      }),
+    )
+  }, [visibleItems, display.label, display.bold, me, roommate])
 
   // Handlers given to the calendar read the latest items from here, so they can stay stable.
   const itemsById = useRef(new Map<string, CalendarItem>())
@@ -188,6 +200,9 @@ export default function SchedulePage() {
               controller={controller}
               view={view}
               events={calendarEvents}
+              bold={display.bold}
+              dense={display.dense}
+              showTime={display.label !== 'compact'}
               onDatesChange={handleDatesChange}
               onEventClick={handleEventClick}
               onCreate={openCreate}

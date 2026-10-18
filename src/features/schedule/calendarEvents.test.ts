@@ -82,6 +82,21 @@ describe('toCalendarEvent', () => {
     })
   })
 
+  it('takes a chip label and picks readable text for solid chips', () => {
+    const mine = eventRowToItem(baseRow, [{ id: 'me', color: '#2c5ea6' }])
+    const household = eventRowToItem({ ...baseRow, owner_id: null }, [])
+    const stay = feedRowToItem(stayRow('Reserved'))
+    if (!mine || !household || !stay) throw new Error('bad fixture')
+    expect(toCalendarEvent(mine, { label: 'B 9-10', bold: true })).toMatchObject({ title: 'B 9-10', contrastColor: 'var(--vivid-ink)' })
+    expect(toCalendarEvent(household, { bold: true })).toMatchObject({
+      title: 'Dentist',
+      contrastColor: 'var(--accent-ink)',
+      className: 'sched-ev sched-ev--event sched-ev--household',
+    })
+    expect(toCalendarEvent(stay, { bold: true })).toMatchObject({ contrastColor: 'var(--guest-ink)' })
+    expect(toCalendarEvent(mine, { bold: false })).toMatchObject({ contrastColor: 'var(--ink)' })
+  })
+
   it('marks blocked dates so they can be styled quietly', () => {
     const item = feedRowToItem(stayRow('Airbnb (Not available)'))
     if (!item) throw new Error('bad fixture')

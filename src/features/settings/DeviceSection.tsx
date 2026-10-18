@@ -3,9 +3,10 @@ import { useState } from 'react'
 import { useAuth } from '../../auth/AuthProvider'
 import { Button } from '../../components/ui/Button'
 import { Dialog } from '../../components/ui/Dialog'
-import { TextField } from '../../components/ui/Field'
+import { Checkbox, TextField } from '../../components/ui/Field'
 import { Panel, SectionLabel, Segmented } from '../../components/ui/Layout'
 import { useToast } from '../../components/ui/Toast'
+import { setDisplayPrefs, useDisplayPrefs, type EventLabelMode } from '../schedule/display'
 import { friendlyError } from '../../lib/errors'
 import { supabase } from '../../lib/supabase'
 import { getStoredTheme, setTheme, type ThemeChoice } from '../../lib/theme'
@@ -15,25 +16,61 @@ import { MIN_PASSWORD } from '../../auth/LoginPage'
 
 export function AppearanceSection() {
   const [theme, setChoice] = useState<ThemeChoice>(getStoredTheme)
+  const display = useDisplayPrefs()
   return (
     <section className="flex flex-col gap-3" aria-labelledby="appearance-heading">
       <SectionLabel>
         <span id="appearance-heading">Appearance</span>
       </SectionLabel>
-      <Panel className="flex flex-col gap-2 p-4">
-        <span className="text-sm font-medium">Theme on this device</span>
-        <Segmented<ThemeChoice>
-          label="Theme"
-          value={theme}
-          onChange={(t) => {
-            setChoice(t)
-            setTheme(t)
-          }}
-          options={[
-            { value: 'system', label: 'Match device' },
-            { value: 'light', label: 'Light' },
-            { value: 'dark', label: 'Dark' },
-          ]}
+      <Panel className="flex flex-col gap-4 p-4">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Theme on this device</span>
+          <Segmented<ThemeChoice>
+            label="Theme"
+            value={theme}
+            onChange={(t) => {
+              setChoice(t)
+              setTheme(t)
+            }}
+            options={[
+              { value: 'system', label: 'Match device' },
+              { value: 'light', label: 'Light' },
+              { value: 'dark', label: 'Dark' },
+            ]}
+          />
+        </div>
+        <div className="flex flex-col gap-2 border-t border-line pt-4">
+          <span className="text-sm font-medium">Calendar colors</span>
+          <Segmented<'bold' | 'soft'>
+            label="Calendar colors"
+            value={display.bold ? 'bold' : 'soft'}
+            onChange={(v) => setDisplayPrefs({ bold: v === 'bold' })}
+            options={[
+              { value: 'bold', label: 'Bold' },
+              { value: 'soft', label: 'Soft' },
+            ]}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">Calendar labels</span>
+          <Segmented<EventLabelMode>
+            label="Calendar labels"
+            value={display.label}
+            onChange={(label) => setDisplayPrefs({ label })}
+            options={[
+              { value: 'title', label: 'Work' },
+              { value: 'initial', label: 'C Work' },
+              { value: 'compact', label: 'C 6-230' },
+            ]}
+          />
+          <p className="text-sm text-muted">
+            The initial is the first letter of whose event it is. “C 6-230” shows the start and end times instead of the name.
+          </p>
+        </div>
+        <Checkbox
+          label="Compact calendar: square corners, smaller text, more events per day"
+          checked={display.dense}
+          onChange={(e) => setDisplayPrefs({ dense: e.target.checked })}
         />
       </Panel>
     </section>

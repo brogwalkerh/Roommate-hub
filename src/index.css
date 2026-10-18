@@ -24,6 +24,9 @@
   --warn-soft: #f6eedd;
   --guest: #c2410c;
   --guest-soft: #fdebe1;
+  --guest-ink: #ffffff;
+  /* Text on a person's or feed's own color (always a mid or dark hex). */
+  --vivid-ink: #ffffff;
   --focus: #2c5ea6;
   color-scheme: light;
 }
@@ -46,6 +49,8 @@
     --warn-soft: #3a2e17;
     --guest: #fb923c;
     --guest-soft: #3b2214;
+    --guest-ink: #1f1208;
+    --vivid-ink: #ffffff;
     --focus: #8cb3ef;
     color-scheme: dark;
   }

@@ -79,6 +79,7 @@ The **Home** page shows a card for each area:
 - The chips above the calendar filter what you see: **Me**, your roommate's name, **Household**, **Guest stays**, **Blocked dates**, and each personal calendar.
 - A personal calendar set to **Just “Busy”** shows only as "Busy" blocks, with no details.
 - Tap **Import** to add a whole schedule from a file. See below.
+- **How events look** is up to each device, under **Settings → Appearance**: **Bold** (solid color blocks) or **Soft** (tinted); labels as the name (**Work**), initial and name (**C Work**), or initial and times (**C 6-230**, the start and end with no AM/PM); and **Compact calendar** for square corners, smaller text and more events per day before "+n more".
 
 ### Import a schedule from a file
 

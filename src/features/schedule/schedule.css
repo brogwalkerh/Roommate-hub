@@ -64,6 +64,36 @@
   }
 }
 
+/*
+  Bold chips (Settings > Appearance): the full color as the background, with
+  the text color chosen per item in calendarEvents.ts. Blocked dates stay quiet.
+*/
+.sched-cal--bold .sched-ev:not(.sched-cal--list .sched-ev):not(.sched-ev--blocked) {
+  background-color: var(--fc-event-color);
+  border-color: var(--fc-event-color);
+  font-weight: 600;
+}
+
+/*
+  Compact chips: square, tight and small, and more of them before "+n more".
+  FullCalendar's own classes are hashed, so everything hangs off .sched-ev.
+*/
+.sched-cal--dense .sched-ev {
+  border-radius: 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.sched-cal--dense .sched-ev:not(.sched-cal--list .sched-ev) {
+  border-inline-start-width: 2px;
+}
+
+.sched-cal--dense .sched-ev :where(*) {
+  padding-block: 0;
+  padding-inline: 2px;
+  border-radius: 0;
+}
+
 /* Dates Airbnb blocks: quiet, hatched and dashed so they never look like a booking. */
 .sched-ev--blocked:not(.sched-cal--list .sched-ev) {
   background-color: var(--surface-2);

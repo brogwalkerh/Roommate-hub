@@ -44,6 +44,12 @@ type Props = {
   controller: CalendarController
   view: ViewKey
   events: EventInput[]
+  /** Solid chips in each item's color (schedule.css). */
+  bold?: boolean
+  /** Square corners, tighter chips, more rows before "+n more". */
+  dense?: boolean
+  /** FullCalendar's own time prefix ("6a") in the month grid; off when labels carry the times. */
+  showTime?: boolean
   onDatesChange: (start: Date, end: Date) => void
   onEventClick: (id: string) => void
   onCreate: (selection: Selection) => void
@@ -59,6 +65,9 @@ export const CalendarView = memo(function CalendarView({
   controller,
   view,
   events,
+  bold = true,
+  dense = false,
+  showTime = true,
   onDatesChange,
   onEventClick,
   onCreate,
@@ -115,7 +124,14 @@ export const CalendarView = memo(function CalendarView({
   const handleEventResize = useCallback((info: EventResizeDoneInfo) => handleChange(info, true), [handleChange])
 
   return (
-    <div className={`sched-cal ${view === 'agenda' ? 'sched-cal--list' : 'sched-cal--grid'}`}>
+    <div
+      className={[
+        'sched-cal',
+        view === 'agenda' ? 'sched-cal--list' : 'sched-cal--grid',
+        bold ? 'sched-cal--bold' : 'sched-cal--soft',
+        dense ? 'sched-cal--dense' : '',
+      ].join(' ')}
+    >
       <FullCalendar
         plugins={PLUGINS}
         controller={controller}
@@ -131,8 +147,9 @@ export const CalendarView = memo(function CalendarView({
         eventInteractive
         selectable
         selectMirror
-        dayMaxEvents={3}
+        dayMaxEvents={dense ? 5 : 3}
         eventTimeFormat={TIME_FORMAT}
+        displayEventTime={showTime}
         noEventsText="Nothing scheduled"
         datesSet={handleDatesSet}
         eventClick={handleEventClick}
