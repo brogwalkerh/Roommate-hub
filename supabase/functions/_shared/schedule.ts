@@ -36,6 +36,8 @@ export type ParsedEvent = {
   notes: string
   /** An OFF / leave / holiday entry rather than somewhere to be. */
   dayOff: boolean
+  /** The schedule's word for the end when it isn't a time ("close", "CL"); "" otherwise. */
+  endLabel: string
 }
 
 export const MAX_PDF_BYTES = 10 * 1024 * 1024
@@ -112,7 +114,11 @@ export const SCHEDULE_SCHEMA = {
           },
           all_day: { type: 'boolean' },
           start_time: { type: 'string', description: '24-hour HH:MM; "" for all-day events' },
-          end_time: { type: 'string', description: '24-hour HH:MM; "" if the schedule gives no end time' },
+          end_time: { type: 'string', description: '24-hour HH:MM; "" if the schedule gives no end time or ends with a word like "close"' },
+          end_label: {
+            type: 'string',
+            description: 'When the end is a word rather than a time ("close", "CL", "till done"), that word as written; "" otherwise',
+          },
           location: { type: 'string', description: 'Place or room if given, else ""' },
           notes: { type: 'string', description: 'Other useful details from the schedule (role, station, reference), else ""' },
           day_off: {
@@ -120,7 +126,7 @@ export const SCHEDULE_SCHEMA = {
             description: 'true for a day off, leave or holiday entry (OFF, REQ OFF, PTO, vacation, bank holiday); false for a shift, class or appointment',
           },
         },
-        required: ['title', 'date', 'end_date', 'all_day', 'start_time', 'end_time', 'location', 'notes', 'day_off'],
+        required: ['title', 'date', 'end_date', 'all_day', 'start_time', 'end_time', 'end_label', 'location', 'notes', 'day_off'],
         additionalProperties: false,
       },
     },
@@ -139,6 +145,7 @@ export const SYSTEM_PROMPT = `You read a person's schedule (a work rota, class t
 Rules:
 - One event per occurrence. If the schedule shows a repeating pattern over a date range (for example "Mon-Fri 9-5, Oct 20 to Oct 31"), list each day separately.
 - Use 24-hour HH:MM times. If an item has a start but no end time, leave end_time empty. A shift that ends after midnight keeps its real end time (e.g. 22:00 to 06:00).
+- If the end is a word instead of a time ("4-close", "4-CL", "till done"), leave end_time empty and put that word in end_label exactly as written. Never guess a closing time.
 - Mark days off, leave and holidays (OFF, REQ OFF, PTO, vacation) as all-day events with day_off true, but only when the schedule names them explicitly; skip blank cells. Codes you cannot interpret (e.g. "HW", "MLA") go in notes with day_off false, and get a warning.
 - Keep titles short and natural ("Work", "Chemistry lecture", "Night shift", "Day off"). Put extra details such as role, station or room in location or notes.
 - Times like "2:30P-11:00P" mean 14:30 to 23:00; "9:00-4:00A" means 21:00 to 04:00 the next morning.
@@ -196,16 +203,18 @@ export function normalizeEvents(raw: unknown): { events: ParsedEvent[]; warnings
     const dayOff = e.day_off === true
     const allDay = dayOff || e.all_day === true || !hasStart
     const endDate = clean(e.end_date, 10)
+    const hasEnd = !allDay && TIME_RE.test(endTime)
     events.push({
       title,
       date,
       endDate: allDay && isRealDate(endDate) && endDate >= date ? endDate : date,
       allDay,
       startTime: allDay ? '' : startTime,
-      endTime: allDay || !TIME_RE.test(endTime) ? '' : endTime,
+      endTime: hasEnd ? endTime : '',
       location: clean(e.location, TEXT_MAX),
       notes: clean(e.notes, TEXT_MAX),
       dayOff,
+      endLabel: allDay || hasEnd ? '' : clean(e.end_label, 20),
     })
   }
 

@@ -16,6 +16,8 @@ export type ParsedEvent = {
   notes: string
   /** An OFF / leave / holiday entry rather than somewhere to be. */
   dayOff: boolean
+  /** The schedule's word for the end when it isn't a time ("close"); "" otherwise. */
+  endLabel: string
 }
 
 /** One line in the review list. Everything in it can be edited before adding. */
@@ -38,6 +40,8 @@ export type ImportRow = {
   startTime: string
   /** "HH:mm", or "" for an hour after the start. Earlier than startTime ends the next day. */
   endTime: string
+  /** "close" and the like: the shift ends when the place closes. A closing time can fill endTime in. */
+  endLabel: string
   location: string
   notes: string
 }
@@ -87,21 +91,44 @@ export function isDuplicate(row: ImportRow, taken: Set<string>): boolean {
   return key !== null && taken.has(key)
 }
 
+/** "16:30" -> "4:30 PM", "16:00" -> "4 PM". */
+export function fmt12(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number)
+  const hour = h % 12 || 12
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  return m ? `${hour}:${String(m).padStart(2, '0')} ${suffix}` : `${hour} ${suffix}`
+}
+
+/** A row ends at "close" (or similar) and no time has been filled in for it yet. */
+export function endsAtLabel(row: Pick<ImportRow, 'allDay' | 'endLabel' | 'endTime'>): boolean {
+  return !row.allDay && row.endLabel !== '' && !TIME_RE.test(row.endTime)
+}
+
+/** Fill the closing time into every row that ends at "close". Invalid or empty time: rows unchanged. */
+export function applyCloseTime(rows: ImportRow[], closeTime: string): ImportRow[] {
+  if (!TIME_RE.test(closeTime)) return rows
+  return rows.map((r) => (endsAtLabel(r) ? { ...r, endTime: closeTime } : r))
+}
+
 /** Review rows for the parsed events. Duplicates and days off start unticked. */
 export function rowsFromParsed(events: ParsedEvent[], existing: ExistingEvent[]): ImportRow[] {
   const taken = existingKeys(existing)
   return events.map((e, i) => {
+    const endLabel = e.allDay || TIME_RE.test(e.endTime) ? '' : e.endLabel
+    // "Work (4 PM–close)" says on the calendar what a time can't.
+    const title = endLabel && TIME_RE.test(e.startTime) ? `${e.title} (${fmt12(e.startTime)}–${endLabel})` : e.title
     const row: ImportRow = {
       key: String(i),
       include: true,
       duplicate: false,
       dayOff: e.dayOff,
-      title: e.title.slice(0, TITLE_MAX),
+      title: title.slice(0, TITLE_MAX),
       allDay: e.allDay,
       startDay: e.date,
       endDay: e.allDay && e.endDate >= e.date ? e.endDate : e.date,
       startTime: e.allDay ? '' : e.startTime,
       endTime: e.allDay ? '' : e.endTime,
+      endLabel,
       location: e.location,
       notes: e.notes,
     }

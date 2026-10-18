@@ -92,7 +92,7 @@ Got a work rota, class timetable or shift plan? Tap **Import** on the Schedule p
 6. To fill in more than the one week or fortnight the file shows, tick **Repeat this schedule**, choose every **week** or **2 weeks**, and pick an end date. The button shows how many events that makes. Copies that already exist on the calendar are skipped.
 7. Pick **Whose schedule is it?** and tap **Add events**.
 
-Tips: a straight, well-lit photo reads best. A shift that ends after midnight (say 10 PM to 6 AM) is saved as ending the next morning. Claude's notes about anything it was unsure of appear at the top of the list. If something looks wrong, fix it in the list or edit the event afterwards.
+Tips: a straight, well-lit photo reads best. A shift that ends after midnight (say 10 PM to 6 AM) is saved as ending the next morning. A shift written as "4–close" is named **Work (4 PM–close)**; a **Closing time** box appears so you can give all such shifts a real end in one go (the app remembers it), or leave it blank and they show as one-hour blocks. Claude's notes about anything it was unsure of appear at the top of the list. If something looks wrong, fix it in the list or edit the event afterwards.
 
 ### Reminders
 

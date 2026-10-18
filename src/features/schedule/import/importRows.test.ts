@@ -1,7 +1,10 @@
 import {
+  applyCloseTime,
   daysRange,
+  endsAtLabel,
   existingKeys,
   expandWeekly,
+  fmt12,
   isDuplicate,
   lastStartDay,
   rowProblem,
@@ -24,10 +27,48 @@ const parsed = (o: Partial<ParsedEvent> = {}): ParsedEvent => ({
   location: 'Café Rio',
   notes: '',
   dayOff: false,
+  endLabel: '',
   ...o,
 })
 
 const local = (value: string) => new Date(value).toISOString()
+
+describe('shifts that end at "close"', () => {
+  it('formats 12-hour times', () => {
+    expect(fmt12('16:00')).toBe('4 PM')
+    expect(fmt12('16:30')).toBe('4:30 PM')
+    expect(fmt12('00:15')).toBe('12:15 AM')
+    expect(fmt12('12:00')).toBe('12 PM')
+  })
+
+  it('puts the word in the name and leaves the end open', () => {
+    const [row] = rowsFromParsed([parsed({ startTime: '16:00', endTime: '', endLabel: 'close' })], [])
+    expect(row).toMatchObject({ title: 'Work (4 PM–close)', startTime: '16:00', endTime: '', endLabel: 'close' })
+    expect(endsAtLabel(row)).toBe(true)
+    expect(rowToFields(row, 'me').ends_at).toBe(local('2026-10-20T17:00')) // an hour, until a closing time is given
+  })
+
+  it('ignores the word when a real end time is known', () => {
+    const [row] = rowsFromParsed([parsed({ endLabel: 'close' })], [])
+    expect(row).toMatchObject({ title: 'Work', endTime: '17:00', endLabel: '' })
+    expect(endsAtLabel(row)).toBe(false)
+  })
+
+  it('fills a closing time into only the open-ended rows', () => {
+    const rows = rowsFromParsed([parsed({ startTime: '16:00', endTime: '', endLabel: 'close' }), parsed({ date: '2026-10-21' })], [])
+    const [close, normal] = applyCloseTime(rows, '23:30')
+    expect(close.endTime).toBe('23:30')
+    expect(normal.endTime).toBe('17:00')
+    expect(rowToFields(close, null).ends_at).toBe(local('2026-10-20T23:30'))
+    expect(applyCloseTime(rows, '')).toBe(rows)
+    expect(applyCloseTime(rows, '25:00')).toBe(rows)
+  })
+
+  it('ends the next morning when close is after midnight', () => {
+    const [row] = applyCloseTime(rowsFromParsed([parsed({ startTime: '16:00', endTime: '', endLabel: 'close' })], []), '01:00')
+    expect(rowToFields(row, null).ends_at).toBe(local('2026-10-21T01:00'))
+  })
+})
 
 describe('timedRange', () => {
   it('uses the given end time', () => {

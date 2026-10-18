@@ -58,6 +58,7 @@ const event = (o: Record<string, unknown>) => ({
   location: 'Café Rio',
   notes: '',
   dayOff: false,
+  endLabel: '',
   ...o,
 })
 
@@ -184,6 +185,40 @@ it('repeats the schedule weekly and skips copies already on the calendar', async
     new Date('2026-11-03T09:00').toISOString(),
   ])
   expect(await screen.findByText('Added 2 events (1 already on the calendar)')).toBeInTheDocument()
+})
+
+it('names shifts that end at close and takes one closing time for all of them', async () => {
+  fake.state.parsed = {
+    data: {
+      events: [
+        event({ startTime: '16:00', endTime: '', endLabel: 'close' }),
+        event({ date: '2026-10-21', startTime: '16:00', endTime: '', endLabel: 'close' }),
+        event({ date: '2026-10-22' }),
+      ],
+      warnings: [],
+    },
+    error: null,
+  }
+  const user = userEvent.setup()
+  const onClose = renderDialog()
+  await pickAndRead(user, new File(['x'], 'rota.csv', { type: 'text/csv' }))
+
+  expect(await screen.findByText('2 shifts end at “close”. What time is that?')).toBeInTheDocument()
+  expect(screen.getAllByDisplayValue('Work (4 PM–close)')).toHaveLength(2)
+  expect(screen.getAllByText('Ends at close')).toHaveLength(2)
+  await user.type(screen.getByLabelText('Closing time'), '23:30')
+  expect(screen.getByText(/Those shifts will end at 23:30\./)).toBeInTheDocument()
+  expect(localStorage.getItem('import.closeTime')).toBeNull()
+
+  await user.click(screen.getByRole('button', { name: 'Add 3 events' }))
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  expect(fake.state.inserted.map((r) => (r as { title: string; ends_at: string }).ends_at)).toEqual([
+    new Date('2026-10-20T23:30').toISOString(),
+    new Date('2026-10-21T23:30').toISOString(),
+    new Date('2026-10-22T17:00').toISOString(),
+  ])
+  expect((fake.state.inserted[0] as { title: string }).title).toBe('Work (4 PM–close)')
+  expect(localStorage.getItem('import.closeTime')).toBe('23:30')
 })
 
 it('defaults the owner to me and blocks rows with problems', async () => {

@@ -74,6 +74,7 @@ const ev = (o: Record<string, unknown> = {}) => ({
   location: '',
   notes: '',
   day_off: false,
+  end_label: '',
   ...o,
 })
 
@@ -86,9 +87,23 @@ describe('normalizeEvents', () => {
     expect(out.dropped).toBe(0)
     expect(out.warnings).toEqual(['Row 3 was blurry'])
     expect(out.events).toEqual([
-      { title: 'Night shift', date: '2026-10-20', endDate: '2026-10-20', allDay: false, startTime: '22:00', endTime: '06:00', location: '', notes: '', dayOff: false },
-      { title: 'Work', date: '2026-10-21', endDate: '2026-10-21', allDay: false, startTime: '09:00', endTime: '17:00', location: '', notes: '', dayOff: false },
+      { title: 'Night shift', date: '2026-10-20', endDate: '2026-10-20', allDay: false, startTime: '22:00', endTime: '06:00', location: '', notes: '', dayOff: false, endLabel: '' },
+      { title: 'Work', date: '2026-10-21', endDate: '2026-10-21', allDay: false, startTime: '09:00', endTime: '17:00', location: '', notes: '', dayOff: false, endLabel: '' },
     ])
+  })
+
+  it('keeps the word for an end that is not a time, and drops it when a time is known', () => {
+    const [close, timed, off] = normalizeEvents({
+      events: [
+        ev({ start_time: '16:00', end_time: '', end_label: ' close ' }),
+        ev({ date: '2026-10-21', end_label: 'close' }),
+        ev({ date: '2026-10-22', day_off: true, end_label: 'close' }),
+      ],
+      warnings: [],
+    }).events
+    expect(close).toMatchObject({ allDay: false, startTime: '16:00', endTime: '', endLabel: 'close' })
+    expect(timed).toMatchObject({ endTime: '17:00', endLabel: '' })
+    expect(off).toMatchObject({ allDay: true, endLabel: '' })
   })
 
   it('drops events with no title or an impossible date', () => {
