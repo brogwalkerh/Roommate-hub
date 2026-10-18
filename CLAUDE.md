@@ -60,3 +60,11 @@ supabase/
   public by design. Calendar feed URLs are write-only (the `url` column can't be selected by clients).
 - **Tests**: Vitest, `*.test.ts(x)` next to the code. Pure logic (money splits, date math, parsing) must be
   tested.
+
+## Workflow
+
+- Every change goes on its own branch (`feat/<short-name>`, `fix/<short-name>`, `docs/<short-name>`) with a pull
+  request into `main`. Never commit straight to `main`.
+- The PR description says what changed, how it was tested, and includes screenshots for anything visual.
+- `main` deploys to GitHub Pages on every push, so a PR is merged only after `npm run check` passes and the
+  person has approved it.
