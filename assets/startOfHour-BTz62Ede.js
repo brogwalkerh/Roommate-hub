@@ -1,0 +1,1 @@
+import{a as e,c as t,o as n}from"./en-US-yM9KTvZE.js";function r(t,r,i){return n(i?.in||t,+e(t)+r)}function i(e,n,i){return r(e,n*t,i)}function a(t,n){let r=e(t,n?.in);return r.setMinutes(0,0,0),r}export{i as n,a as t};

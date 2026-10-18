@@ -1,0 +1,1 @@
+import{n as e}from"./parseISO-DqTbleu4.js";import{t}from"./formatDistanceStrict-ht1gORBU.js";function n(n,r){return t(n,e(n),r)}export{n as t};

@@ -1,0 +1,1 @@
+import{a as e}from"./en-US-yM9KTvZE.js";import{t}from"./getRoundingMethod-y23OflDD.js";function n(t,n){return+e(t)-e(n)}function r(e,r,i){let a=n(e,r)/1e3;return t(i?.roundingMethod)(a)}export{r as t};

@@ -1,0 +1,1 @@
+import{a as e}from"./en-US-yM9KTvZE.js";function t(t,n){let r=+e(t)-e(n);return r<0?-1:r>0?1:r}function n(e){return t=>{let n=(e?Math[e]:Math.trunc)(t);return n===0?0:n}}export{t as n,n as t};
