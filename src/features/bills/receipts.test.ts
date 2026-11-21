@@ -117,7 +117,8 @@ describe('isMissingFileError', () => {
 describe('categoryFor', () => {
   it('maps stored values and falls back to Other', () => {
     expect(categoryFor('rent').label).toBe('Rent')
-    expect(categoryFor('Utilities').label).toBe('Utilities')
+    expect(categoryFor('Utilities').label).toBe('Other utilities')
+    expect(categoryFor('water').label).toBe('Water')
     expect(categoryFor('pets').label).toBe('Other')
     expect(categoryFor(null).value).toBe('other')
   })

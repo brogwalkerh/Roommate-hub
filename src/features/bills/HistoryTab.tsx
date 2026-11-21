@@ -6,8 +6,9 @@ import { useMembers } from '../../household/useHousehold'
 import { formatCents } from '../../lib/money'
 import { BillRow } from './BillRow'
 import { groupHistory } from './history'
-import { usePaidBills, useSettlements, useToday, type Bill, type Settlement } from './hooks'
+import { useBillDebts, usePaidBills, useSettlements, useToday, type Bill, type Settlement } from './hooks'
 import { formatBillDate } from './schedule'
+import { debtsForBill } from './shares'
 import { shareOf } from './split'
 import { settlementSentence } from './wording'
 
@@ -21,6 +22,7 @@ export function HistoryTab({
 }) {
   const bills = usePaidBills()
   const settlements = useSettlements()
+  const { data: debts } = useBillDebts()
   const { me, byId } = useMembers()
   const today = useToday()
   const myId = me?.id
@@ -73,6 +75,7 @@ export function HistoryTab({
                   today={today}
                   myId={myId}
                   payer={byId(entry.item.paid_by)}
+                  debts={debtsForBill(debts ?? [], entry.item.id)}
                   onOpen={() => onOpenBill(entry.item)}
                 />
               ) : (
@@ -120,7 +123,8 @@ function SettlementRow({
           <span className="shrink-0 font-semibold tabular">{formatCents(settlement.amount_cents)}</span>
         </div>
         <p className="mt-0.5 text-sm text-muted">
-          Settled up {dateLabel}
+          {settlement.bill_title ? `For ${settlement.bill_title}, ` : 'Settled up '}
+          {dateLabel}
           {settlement.note && <span className="break-words">: {settlement.note}</span>}
         </p>
       </div>

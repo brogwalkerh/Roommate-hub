@@ -8,9 +8,11 @@ import { useMembers } from '../../household/useHousehold'
 import { describeBillError } from './billErrors'
 import { CATEGORIES } from './categories'
 import { billFormToInput, checkBillForm, initialBillForm, switchSplit, type BillForm } from './forms'
-import { useDeleteBill, useOpenReceipt, useSaveBill, useToday, type Bill } from './hooks'
+import { useBillDebts, useDeleteBill, useOpenReceipt, useSaveBill, useToday, type Bill } from './hooks'
 import { ConfirmDeleteFooter, PayerPicker } from './parts'
 import { RECEIPT_ACCEPT, formatBytes, receiptNameFromPath, validateReceipt } from './receipts'
+import { ShareLine } from './ShareLine'
+import { debtsForBill } from './shares'
 import { SplitEditor } from './SplitEditor'
 
 /** Add a bill, or edit / delete an existing one. Mount it only while open. */
@@ -22,6 +24,7 @@ export function BillDialog({ bill, onClose }: { bill: Bill | null; onClose: () =
   const save = useSaveBill()
   const remove = useDeleteBill()
   const openReceipt = useOpenReceipt()
+  const { data: debts } = useBillDebts()
   const formId = useId()
 
   const [form, setForm] = useState<BillForm>(() => initialBillForm(bill, memberIds, me?.id, today))
@@ -151,25 +154,37 @@ export function BillDialog({ bill, onClose }: { bill: Bill | null; onClose: () =
         </div>
 
         <div className="flex flex-col gap-4 rounded-xl bg-surface-2 p-4">
+          <PayerPicker label="Who pays it?" value={form.payer} onChange={(id) => set('payer', id)} members={members} />
+          <p className="-mt-2 text-sm text-muted">
+            {members.length > 1
+              ? 'The other person owes them their share from now until they pay it back.'
+              : 'Your roommate’s share counts as owed to the payer once they join.'}
+          </p>
           <Checkbox
             label="Already paid"
             checked={form.alreadyPaid}
             onChange={(e) => set('alreadyPaid', e.target.checked)}
           />
           {form.alreadyPaid && (
-            <div className="grid gap-4 sm:grid-cols-2">
-              <PayerPicker label="Paid by" value={form.paidBy} onChange={(id) => set('paidBy', id)} members={members} />
-              <TextField
-                label="Paid on"
-                type="date"
-                required
-                value={form.paidOn}
-                error={form.paidOn ? null : 'Pick the date it was paid.'}
-                onChange={(e) => set('paidOn', e.target.value)}
-              />
-            </div>
+            <TextField
+              label="Paid on"
+              type="date"
+              required
+              value={form.paidOn}
+              error={form.paidOn ? null : 'Pick the date it was paid.'}
+              onChange={(e) => set('paidOn', e.target.value)}
+            />
           )}
         </div>
+
+        {bill && debtsForBill(debts ?? [], bill.id).length > 0 && (
+          <div className="flex flex-col gap-3 rounded-xl border border-line p-4">
+            <span className="text-sm font-medium">Paying back</span>
+            {debtsForBill(debts ?? [], bill.id).map((debt) => (
+              <ShareLine key={debt.user_id} debt={debt} undoable />
+            ))}
+          </div>
+        )}
 
         <SplitEditor
           amountCents={check.amount.ok ? check.amount.cents : null}

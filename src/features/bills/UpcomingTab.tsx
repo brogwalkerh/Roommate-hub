@@ -5,8 +5,9 @@ import { ErrorBlock, LoadingBlock } from '../../components/ui/Status'
 import { useMembers } from '../../household/useHousehold'
 import { formatCents } from '../../lib/money'
 import { BillRow } from './BillRow'
-import { useToday, useUnpaidBills, type Bill } from './hooks'
+import { useBillDebts, useToday, useUnpaidBills, type Bill } from './hooks'
 import { isOverdue } from './schedule'
+import { debtsForBill } from './shares'
 import { shareOf } from './split'
 
 /** Unpaid bills, soonest first, overdue ones flagged. */
@@ -20,6 +21,7 @@ export function UpcomingTab({
   onAdd: () => void
 }) {
   const { data: bills, isLoading, error, refetch } = useUnpaidBills()
+  const { data: debts } = useBillDebts()
   const { me, byId } = useMembers()
   const today = useToday()
 
@@ -62,6 +64,7 @@ export function UpcomingTab({
             today={today}
             myId={me?.id}
             payer={byId(bill.paid_by)}
+            debts={debtsForBill(debts ?? [], bill.id)}
             onOpen={() => onOpen(bill)}
             action={
               <Button

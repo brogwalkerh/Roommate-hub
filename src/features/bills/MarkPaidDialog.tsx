@@ -29,7 +29,7 @@ export function MarkPaidDialog({
   const formId = useId()
 
   const templatePayer = templates?.find((t) => t.id === bill.recurring_bill_id)?.default_payer ?? null
-  const suggested = [templatePayer, me?.id].find((id) => id && members.some((m) => m.id === id)) ?? null
+  const suggested = [bill.payer_id, templatePayer, me?.id].find((id) => id && members.some((m) => m.id === id)) ?? null
   const [paidBy, setPaidBy] = useState<string | null>(suggested)
   const [paidOn, setPaidOn] = useState(today)
   const canSave = !!paidBy && !!paidOn

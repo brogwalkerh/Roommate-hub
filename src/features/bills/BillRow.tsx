@@ -7,17 +7,21 @@ import { categoryFor } from './categories'
 import type { Bill } from './hooks'
 import { CategoryBadge } from './parts'
 import { describeDue, describePaid } from './schedule'
+import { ShareLine } from './ShareLine'
+import type { BillDebt } from './shares'
 import { shareOf } from './split'
 
 /**
- * One bill: title, category, amount, due or paid date, who paid and your
- * share. The whole card opens the bill; `action` sits on top of it.
+ * One bill: title, category, amount, due or paid date, who paid, and who still
+ * owes the payer their share (`debts`, from the bill_debts view). The whole
+ * card opens the bill; `action` sits on top of it.
  */
 export function BillRow({
   bill,
   today,
   myId,
   payer,
+  debts = [],
   onOpen,
   action,
 }: {
@@ -25,6 +29,7 @@ export function BillRow({
   today: string
   myId: string | undefined
   payer: Profile | null
+  debts?: BillDebt[]
   onOpen: () => void
   action?: ReactNode
 }) {
@@ -73,6 +78,13 @@ export function BillRow({
             </span>
           )}
         </p>
+        {debts.length > 0 && (
+          <div className="relative z-10 mt-2 flex flex-col gap-1.5">
+            {debts.map((debt) => (
+              <ShareLine key={debt.user_id} debt={debt} />
+            ))}
+          </div>
+        )}
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <p className="min-w-0 text-sm text-muted tabular">
             Your share: <span className="font-medium whitespace-nowrap text-ink">{formatCents(shareOf(bill.bill_shares, myId))}</span>
