@@ -53,8 +53,10 @@ export type BillForm = SplitFields & {
   category: string
   /** "" when there's no due date. */
   dueOn: string
+  /** Who pays the provider; the other person owes them their share. */
+  payer: string | null
   alreadyPaid: boolean
-  paidBy: string | null
+  /** The date the payer paid the provider, when alreadyPaid. */
   paidOn: string
   notes: string
   /** Existing receipt to keep; null for none. */
@@ -75,8 +77,8 @@ export function initialBillForm(
       amount: '',
       category: 'other',
       dueOn: '',
+      payer: myId ?? memberIds[0] ?? null,
       alreadyPaid: false,
-      paidBy: myId ?? memberIds[0] ?? null,
       paidOn: today,
       split: 'equal',
       exact: defaultExactInputs(null, memberIds),
@@ -92,8 +94,8 @@ export function initialBillForm(
     amount: centsToInput(bill.amount_cents),
     category: bill.category,
     dueOn: bill.due_on ?? '',
+    payer: bill.paid_by ?? bill.payer_id ?? myId ?? memberIds[0] ?? null,
     alreadyPaid: bill.paid_on !== null,
-    paidBy: bill.paid_by ?? myId ?? memberIds[0] ?? null,
     paidOn: bill.paid_on ?? today,
     split: bill.split,
     exact,
@@ -108,6 +110,9 @@ export type BillFormCheck = {
   amount: AmountCheck
   split: SplitResult
   titleOk: boolean
+  /** The payer is a current member. */
+  payerOk: boolean
+  /** An already-paid bill has a paid date. */
   paidOk: boolean
   canSave: boolean
 }
@@ -116,8 +121,9 @@ export function checkBillForm(form: BillForm, memberIds: readonly string[]): Bil
   const amount = parseBillAmount(form.amount)
   const split = computeSplit(amount.ok ? amount.cents : null, { ...form, memberIds })
   const titleOk = form.title.trim().length > 0 && form.title.trim().length <= 120
-  const paidOk = !form.alreadyPaid || (!!form.paidBy && memberIds.includes(form.paidBy) && /^\d{4}-\d{2}-\d{2}$/.test(form.paidOn))
-  return { amount, split, titleOk, paidOk, canSave: titleOk && amount.ok && split.ok && paidOk }
+  const payerOk = !!form.payer && memberIds.includes(form.payer)
+  const paidOk = !form.alreadyPaid || /^\d{4}-\d{2}-\d{2}$/.test(form.paidOn)
+  return { amount, split, titleOk, payerOk, paidOk, canSave: titleOk && amount.ok && split.ok && payerOk && paidOk }
 }
 
 /** What to send to save_bill, or null when the form can't be saved yet. */
@@ -132,8 +138,9 @@ export function billFormToInput(form: BillForm, id: string | null, memberIds: re
     amountCents: check.amount.cents,
     split: form.split,
     dueOn: form.dueOn || null,
+    payerId: form.payer,
     paidOn: paid ? form.paidOn : null,
-    paidBy: paid ? form.paidBy : null,
+    paidBy: paid ? form.payer : null,
     notes: form.notes.trim() || null,
     shares: check.split.shares,
     receiptPath: form.receiptFile ? null : form.receiptPath,

@@ -36,7 +36,7 @@ export function SettlementDialog({ settlement, onClose }: { settlement: Settleme
       footer={
         confirming ? (
           <ConfirmDeleteFooter
-            message="Delete this payment? The balance goes back to what it was before it."
+            message={settlement.bill_title ? "Delete this payment? That share counts as owed again." : "Delete this payment? The balance goes back to what it was before it."}
             confirmLabel="Delete payment"
             onCancel={() => setConfirming(false)}
             onConfirm={confirmDelete}
@@ -64,7 +64,10 @@ export function SettlementDialog({ settlement, onClose }: { settlement: Settleme
           {settlementSentence(settlement, me?.id, byId)}{' '}
           <span className="tabular">{formatCents(settlement.amount_cents)}</span>
         </p>
-        <p className="text-muted">On {formatBillDate(settlement.paid_on, today)}</p>
+        <p className="text-muted">
+          {settlement.bill_title ? `Their share of ${settlement.bill_title}, on ` : 'On '}
+          {formatBillDate(settlement.paid_on, today)}
+        </p>
         {settlement.note && <p className="whitespace-pre-wrap">{settlement.note}</p>}
       </div>
     </Dialog>

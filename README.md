@@ -104,11 +104,13 @@ Tips: a straight, well-lit photo reads best. A shift that ends after midnight (s
 
 ### Bills
 
-- The **Balance** panel at the top says who owes whom, for example "Sam owes you $42.10". Tap **Settle up** to record a payment. The app only records it and does not move money, so pay with cash, Venmo or however you usually do.
+- Every bill has a payer, the person who pays the provider (**Who pays it?** when you add it). The other person owes the payer their share from the moment the bill is added, whether or not the provider has been paid yet.
+- The **Balance** panel at the top says who owes whom, for example "Sam owes you $42.10". Tap **Settle up** to record a payment. The app only records it and does not move money, so pay with cash, Venmo or however you usually do. A settle-up pays off whole bills, oldest first, and anything left over comes off the balance on its own.
+- Each bill shows whether the other person has paid their share back, for example "Sam owes you $42.10" with a **Sam paid** button (or **I paid** when it is your share). Tap it when the money arrives; **Undo** is in the toast and in the bill under **Paying back**.
 - Tap **Add bill** to add an expense. Enter **What’s it for?**, **Amount**, **Category** and an optional **Due date**.
 - **Split** can be **Equal**, **Exact amounts** or **Percent**. The app shows what is still left to assign, and when an amount does not divide evenly, it says who covers the extra cent.
-- Tick **Already paid** to log a bill that is already paid, with **Paid by** and **Paid on**.
-- On an unpaid bill, tap **Mark paid**, choose who paid, and confirm. The app offers **Undo** right after.
+- Tick **Already paid** to log a bill the payer has already paid, with **Paid on**.
+- On an unpaid bill, tap **Mark paid** to say the payer has paid the provider, and confirm. The app offers **Undo** right after. This moves the bill to **History**; the other person's share stays owed until they pay it back.
 - Tap **Attach a photo or PDF** to add a receipt. It also appears in **Files**, in the **Receipts** folder.
 - The tabs are **Upcoming** (unpaid bills, with overdue ones flagged), **History** (paid bills and payments, by month) and **Recurring**.
 - **Recurring** holds monthly bills like rent and internet. Tap **Add recurring bill**, then set the amount, the day of the month it is due, and **Create the bill** (how many days before the due date it appears in **Upcoming**). **Usually paid by** fills in **Who paid?** when you mark it paid. Turn off **Add these bills automatically** to pause it.

@@ -1,11 +1,14 @@
-import { Lamp, Receipt, ShoppingBasket, House, Wifi, Zap, type LucideIcon } from 'lucide-react'
+import { Droplets, Flame, Lamp, Plug, Receipt, ShoppingBasket, House, Wifi, Zap, type LucideIcon } from 'lucide-react'
 
 export type Category = { value: string; label: string; icon: LucideIcon }
 
 /** Stored in bills.category / recurring_bills.category as the lowercase value. */
 export const CATEGORIES: Category[] = [
   { value: 'rent', label: 'Rent', icon: House },
-  { value: 'utilities', label: 'Utilities', icon: Zap },
+  { value: 'electric', label: 'Electric', icon: Zap },
+  { value: 'water', label: 'Water', icon: Droplets },
+  { value: 'gas', label: 'Gas', icon: Flame },
+  { value: 'utilities', label: 'Other utilities', icon: Plug },
   { value: 'internet', label: 'Internet', icon: Wifi },
   { value: 'groceries', label: 'Groceries', icon: ShoppingBasket },
   { value: 'household', label: 'Household', icon: Lamp },

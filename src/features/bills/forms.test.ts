@@ -25,6 +25,7 @@ const savedBill = (patch: Partial<Bill> = {}): Bill => ({
   due_on: '2026-10-20',
   paid_on: null,
   paid_by: null,
+  payer_id: ME,
   notes: null,
   receipt_path: 'receipts/x/power.pdf',
   recurring_bill_id: null,
@@ -46,7 +47,7 @@ const filled = (patch: Partial<BillForm> = {}): BillForm => ({
 })
 
 describe('initialBillForm', () => {
-  it('starts a new bill as an unpaid equal split, paid by me if marked paid', () => {
+  it('starts a new bill as an unpaid equal split that I pay', () => {
     const form = initialBillForm(null, members, ME, today)
     expect(form).toMatchObject({
       title: '',
@@ -54,7 +55,7 @@ describe('initialBillForm', () => {
       category: 'other',
       dueOn: '',
       alreadyPaid: false,
-      paidBy: ME,
+      payer: ME,
       paidOn: today,
       split: 'equal',
       percent: { me: '50', sam: '50' },
@@ -72,6 +73,7 @@ describe('initialBillForm', () => {
       id: 'bill-1',
       amountCents: 10001,
       split: 'percent',
+      payerId: ME,
       paidOn: null,
       paidBy: null,
       receiptPath: 'receipts/x/power.pdf',
@@ -83,9 +85,14 @@ describe('initialBillForm', () => {
     })
   })
 
-  it('reads a paid bill', () => {
+  it('reads a paid bill: whoever paid it is the payer', () => {
     const form = initialBillForm(savedBill({ paid_on: '2026-10-03', paid_by: SAM }), members, ME, today)
-    expect(form).toMatchObject({ alreadyPaid: true, paidBy: SAM, paidOn: '2026-10-03' })
+    expect(form).toMatchObject({ alreadyPaid: true, payer: SAM, paidOn: '2026-10-03' })
+  })
+
+  it('reads an unpaid bill’s payer, falling back to me for bills saved before payers existed', () => {
+    expect(initialBillForm(savedBill({ payer_id: SAM }), members, ME, today).payer).toBe(SAM)
+    expect(initialBillForm(savedBill({ payer_id: null }), members, ME, today).payer).toBe(ME)
   })
 })
 
@@ -100,10 +107,14 @@ describe('checkBillForm', () => {
     expect(checkBillForm(filled({ split: 'exact', exact: { me: '50.01', sam: '50' } }), members).canSave).toBe(true)
   })
 
-  it('needs who paid and when for an already-paid bill', () => {
-    expect(checkBillForm(filled({ alreadyPaid: true, paidBy: SAM, paidOn: today }), members).canSave).toBe(true)
-    expect(checkBillForm(filled({ alreadyPaid: true, paidBy: null }), members).canSave).toBe(false)
-    expect(checkBillForm(filled({ alreadyPaid: true, paidBy: 'stranger' }), members).canSave).toBe(false)
+  it('needs a payer who is a member', () => {
+    expect(checkBillForm(filled({ payer: SAM }), members).canSave).toBe(true)
+    expect(checkBillForm(filled({ payer: null }), members).canSave).toBe(false)
+    expect(checkBillForm(filled({ payer: 'stranger' }), members).payerOk).toBe(false)
+  })
+
+  it('needs the date for an already-paid bill', () => {
+    expect(checkBillForm(filled({ alreadyPaid: true, payer: SAM, paidOn: today }), members).canSave).toBe(true)
     expect(checkBillForm(filled({ alreadyPaid: true, paidOn: '' }), members).canSave).toBe(false)
   })
 })
@@ -113,11 +124,11 @@ describe('billFormToInput', () => {
     expect(billFormToInput(filled({ amount: '' }), null, members)).toBeNull()
   })
 
-  it('sends paid_on and paid_by together, or neither', () => {
-    const unpaid = billFormToInput(filled({ paidBy: SAM, paidOn: today }), null, members)
-    expect(unpaid).toMatchObject({ paidOn: null, paidBy: null })
-    const paid = billFormToInput(filled({ alreadyPaid: true, paidBy: SAM, paidOn: '2026-10-14' }), null, members)
-    expect(paid).toMatchObject({ paidOn: '2026-10-14', paidBy: SAM })
+  it('always sends the payer, and paid_on with paid_by only for an already-paid bill', () => {
+    const unpaid = billFormToInput(filled({ payer: SAM, paidOn: today }), null, members)
+    expect(unpaid).toMatchObject({ payerId: SAM, paidOn: null, paidBy: null })
+    const paid = billFormToInput(filled({ alreadyPaid: true, payer: SAM, paidOn: '2026-10-14' }), null, members)
+    expect(paid).toMatchObject({ payerId: SAM, paidOn: '2026-10-14', paidBy: SAM })
   })
 
   it('trims text, clears blanks and splits evenly', () => {

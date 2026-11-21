@@ -251,6 +251,8 @@ export type Database = {
           due_on: string | null
           paid_on: string | null
           paid_by: string | null
+          /** Who pays the provider; the others owe them their shares. */
+          payer_id: string | null
           notes: string | null
           receipt_path: string | null
           recurring_bill_id: string | null
@@ -261,6 +263,7 @@ export type Database = {
         Update: {
           paid_on?: string | null
           paid_by?: string | null
+          payer_id?: string | null
           receipt_path?: string | null
         }
         Relationships: [
@@ -295,6 +298,8 @@ export type Database = {
           amount_cents: number
           paid_on: string
           note: string | null
+          /** Set when this pays one person's share of one bill. */
+          bill_id: string | null
           created_by: string | null
         } & Timestamps
         Insert: {
@@ -304,9 +309,18 @@ export type Database = {
           amount_cents: number
           paid_on?: string
           note?: string | null
+          bill_id?: string | null
         }
         Update: { amount_cents?: number; paid_on?: string; note?: string | null }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: 'settlements_bill_id_fkey'
+            columns: ['bill_id']
+            isOneToOne: false
+            referencedRelation: 'bills'
+            referencedColumns: ['id']
+          },
+        ]
       }
       files: {
         Row: {
@@ -348,6 +362,21 @@ export type Database = {
         Row: { user_id: string; net_cents: number }
         Relationships: []
       }
+      bill_debts: {
+        Row: {
+          bill_id: string
+          title: string
+          due_on: string | null
+          paid_on: string | null
+          created_at: string
+          payer_id: string
+          user_id: string
+          share_cents: number
+          paid_cents: number
+          paid_back_on: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       is_member: { Args: Record<PropertyKey, never>; Returns: boolean }
@@ -372,6 +401,7 @@ export type Database = {
           p_notes: string | null
           p_receipt_path: string | null
           p_shares: Json
+          p_payer_id: string | null
         }
         Returns: Database['public']['Tables']['bills']['Row']
       }

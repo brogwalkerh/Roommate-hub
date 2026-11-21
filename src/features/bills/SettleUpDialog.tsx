@@ -9,7 +9,8 @@ import type { Profile } from '../../household/useHousehold'
 import { centsToInput, formatCents } from '../../lib/money'
 import { describeBillError } from './billErrors'
 import { checkSettleAmount } from './forms'
-import { useSettleUp, useToday } from './hooks'
+import { useBillDebts, useSettleUp, useToday } from './hooks'
+import { openDebts, planSettlement } from './shares'
 import { settlementFor } from './split'
 
 /**
@@ -30,6 +31,7 @@ export function SettleUpDialog({
   const today = useToday()
   const { toast } = useToast()
   const settle = useSettleUp()
+  const { data: debts } = useBillDebts()
   const formId = useId()
 
   // Fixed when the dialog opens, so a live balance update can't flip the direction mid-edit.
@@ -44,6 +46,8 @@ export function SettleUpDialog({
   const from = plan?.from_user === me.id ? me : roommate
   const to = from.id === me.id ? roommate : me
   const canSave = !!plan && check.ok && !!paidOn
+  // Which bills this payment pays off, oldest first; the rest is a plain payment.
+  const spread = planSettlement(check.ok ? check.cents : 0, openDebts(debts ?? [], from.id, to.id))
 
   const submit = () => {
     if (!plan || !check.ok || !paidOn) {
@@ -51,7 +55,7 @@ export function SettleUpDialog({
       return
     }
     settle.mutate(
-      { fromUser: from.id, toUser: to.id, amountCents: check.cents, paidOn, note: note.trim() || null },
+      { fromUser: from.id, toUser: to.id, paidOn, note: note.trim() || null, plan: spread },
       {
         onSuccess: () => {
           toast(check.cents === owed ? 'You’re all settled up' : `Recorded a ${formatCents(check.cents)} payment`)
@@ -113,6 +117,17 @@ export function SettleUpDialog({
           hint={`The full balance is ${formatCents(owed)}.`}
           className="tabular"
         />
+        {check.ok && (
+          <p className="-mt-2 text-sm text-muted" aria-live="polite">
+            {spread.covered.length > 0 && (
+              <>
+                Pays off {spread.covered.map((c) => c.title).join(', ')}
+                {spread.remainderCents > 0 ? `, with ${formatCents(spread.remainderCents)} left over.` : '.'}
+              </>
+            )}
+            {spread.covered.length === 0 && 'Doesn’t cover a whole share of any bill, so it comes off the balance on its own.'}
+          </p>
+        )}
         <TextField
           label="Paid on"
           type="date"

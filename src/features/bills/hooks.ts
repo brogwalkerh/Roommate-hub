@@ -29,12 +29,14 @@ import {
   validateReceipt,
 } from './receipts'
 import { compareByDue, isDueWithin, todayIn } from './schedule'
+import type { BillDebt, SettlementPlan } from './shares'
 import { parseShares, type Share, type SplitType } from './split'
 
 export type BillShare = Tables<'bill_shares'>
 /** A bills row with its shares. */
 export type Bill = Tables<'bills'> & { bill_shares: BillShare[] }
-export type Settlement = Tables<'settlements'>
+/** A settlements row, with the title of the bill it pays a share of (null for a plain settle-up). */
+export type Settlement = Tables<'settlements'> & { bill_title: string | null }
 /** A recurring_bills row with `shares` parsed (null when the stored JSON is malformed). */
 export type RecurringBill = Omit<Tables<'recurring_bills'>, 'shares'> & { shares: Share[] | null }
 export type Balance = Views<'balances'>
@@ -137,18 +139,36 @@ export function useBillsDueSoon(days = 7) {
 /** Settle-up payments, newest first. */
 export function useSettlements() {
   const { user } = useAuth()
-  useRealtime('settlements', qk.settlements, qk.balances)
+  useRealtime('settlements', qk.settlements, qk.balances, qk.bills)
   return useQuery({
     queryKey: [...qk.settlements, 'list'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Settlement[]> => {
       const rows = rowsOf(
         await supabase
           .from('settlements')
-          .select('*')
+          .select('*, bills(title)')
           .order('paid_on', { ascending: false })
           .order('created_at', { ascending: false }),
       )
-      return rows.map((s) => ({ ...s, amount_cents: Number(s.amount_cents) }))
+      return rows.map(({ bills, ...s }) => ({ ...s, amount_cents: Number(s.amount_cents), bill_title: bills?.title ?? null }))
+    },
+    enabled: !!user,
+  })
+}
+
+/**
+ * What each person owes the other on each bill (the bill_debts view): one row
+ * per share somebody other than the payer owes, with what they've paid back.
+ */
+export function useBillDebts() {
+  const { user } = useAuth()
+  useBillsRealtime()
+  useRealtime('settlements', qk.settlements, qk.balances, qk.bills)
+  return useQuery({
+    queryKey: [...qk.bills, 'debts'],
+    queryFn: async (): Promise<BillDebt[]> => {
+      const rows = rowsOf(await supabase.from('bill_debts').select('*'))
+      return rows.map((d) => ({ ...d, share_cents: Number(d.share_cents), paid_cents: Number(d.paid_cents) }))
     },
     enabled: !!user,
   })
@@ -300,6 +320,8 @@ export type SaveBillInput = {
   amountCents: number
   split: SplitType
   dueOn: string | null
+  /** Who pays the provider. The others owe them their shares from now on. */
+  payerId: string | null
   /** paidOn and paidBy are both set or both null (bills_paid_shape). */
   paidOn: string | null
   paidBy: string | null
@@ -346,6 +368,7 @@ export function useSaveBill() {
             p_notes: input.notes,
             p_receipt_path: uploaded ? uploaded.path : input.receiptPath,
             p_shares: input.shares,
+            p_payer_id: input.payerId,
           }),
         )
         return saved
@@ -406,15 +429,47 @@ export type SettleUpInput = {
   fromUser: string
   /** The person who was owed. */
   toUser: string
-  amountCents: number
   paidOn: string
   note: string | null
+  /** Spread over the bills it covers (planSettlement), plus any remainder. */
+  plan: SettlementPlan
 }
 
+/**
+ * Record a payment between roommates: one settlement per bill it pays off
+ * (so those bills show as paid back) and one more for anything left over.
+ */
 export function useSettleUp() {
   const invalidate = useInvalidateBills()
   return useMutation({
-    mutationFn: async (input: SettleUpInput) =>
+    mutationFn: async (input: SettleUpInput) => {
+      const base = { from_user: input.fromUser, to_user: input.toUser, paid_on: input.paidOn, note: input.note }
+      const rows = [
+        ...input.plan.covered.map((c) => ({ ...base, bill_id: c.bill_id, amount_cents: c.amount_cents })),
+        ...(input.plan.remainderCents > 0 ? [{ ...base, bill_id: null, amount_cents: input.plan.remainderCents }] : []),
+      ]
+      if (rows.length === 0) throw new Error('Enter an amount above $0.')
+      return rowsOf(await supabase.from('settlements').insert(rows).select())
+    },
+    onSettled: () => invalidate(qk.settlements),
+  })
+}
+
+export type PayShareInput = {
+  billId: string
+  /** The person whose share it is. */
+  fromUser: string
+  /** The bill's payer. */
+  toUser: string
+  amountCents: number
+  paidOn: string
+}
+
+/** "Sam paid his share": a settlement tied to the bill. */
+export function usePayShare() {
+  const invalidate = useInvalidateBills()
+  return useMutation({
+    mutationFn: async (input: PayShareInput) =>
       rowOf(
         await supabase
           .from('settlements')
@@ -423,11 +478,23 @@ export function useSettleUp() {
             to_user: input.toUser,
             amount_cents: input.amountCents,
             paid_on: input.paidOn,
-            note: input.note,
+            bill_id: input.billId,
+            note: null,
           })
           .select()
           .single(),
       ),
+    onSettled: () => invalidate(qk.settlements),
+  })
+}
+
+/** Undo "paid their share": removes that person's payment on that bill. */
+export function useUnpayShare() {
+  const invalidate = useInvalidateBills()
+  return useMutation({
+    mutationFn: async ({ billId, fromUser }: { billId: string; fromUser: string }) => {
+      unwrap(await supabase.from('settlements').delete().eq('bill_id', billId).eq('from_user', fromUser))
+    },
     onSettled: () => invalidate(qk.settlements),
   })
 }
